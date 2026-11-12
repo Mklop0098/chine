@@ -1,0 +1,18 @@
+{
+  "name": "tucamthanh",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tử Cấm Thành – bối cảnh 3D cho game, dựng bằng three.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "0.160.1"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<title>Tử Cấm Thành · Mô hình Three.js chi tiết</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#d9dfd6;color:#f7edd8;font:14px system-ui,sans-serif}
+canvas{display:block;touch-action:none}
+#settingsToggle{position:fixed;top:16px;right:16px;display:flex;align-items:center;gap:7px;padding:9px 12px;background:#23332cf5;box-shadow:0 4px 18px #172c2840}
+#settingsToggle:focus-visible{outline:2px solid #ffe1a3;outline-offset:3px}
+#settingsMenu{position:fixed;inset:60px 16px auto auto;margin:0;width:min(343px,calc(100vw - 32px));max-height:calc(100dvh - 76px);overflow:auto;overscroll-behavior:contain;background:#23332cf5;color:#f7edd8;padding:20px;border:1px solid #f3dca354;border-radius:13px;box-shadow:0 14px 45px #172c2850}
+h1{font:33px Georgia,serif;margin:0 0 7px;color:#fff0ca}
+p{line-height:1.5;margin:10px 0 0}
+small{color:#e3d0a7}
+button,select{background:#3a4639;color:#fff1d3;border:1px solid #e8c77a58;border-radius:7px;padding:9px;cursor:pointer;font:inherit}
+select{width:100%;margin:13px 0 8px}
+.row{display:flex;flex-wrap:wrap;gap:5px}
+button[aria-pressed=true]{background:#ecd3a0;color:#25342c}
+#status{position:fixed;bottom:23px;left:50%;transform:translateX(-50%);padding:9px 15px;background:#23332cf2;border-radius:8px;text-align:center;width:max-content;max-width:94vw}
+#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.pin{position:absolute;transform:translate(-50%,-100%);padding:4px 8px;border-radius:4px;background:#23332ce7;white-space:nowrap;font-size:11px}
+.pin[hidden]{display:none}
+details{margin-top:11px;font-size:12px;line-height:1.5}summary{cursor:pointer}a{color:#ffe1a3}
+#credit{position:fixed;right:11px;bottom:4px;color:#fff;background:#23332cde;padding:3px 6px;border-radius:3px;font-size:10px}
+#directions{display:none;position:fixed;right:12px;bottom:78px;grid-template-columns:repeat(3,42px);gap:4px}
+#directions button{padding:7px;touch-action:none}
+#directions button:first-child{grid-column:2}
+#directions button:nth-child(2){grid-column:1}
+@media(pointer:coarse){body.walking #directions{display:grid}}
+@media(max-width:580px){#settingsToggle{top:10px;right:10px}#settingsMenu{inset:54px 10px auto auto;width:min(310px,calc(100vw - 20px));max-height:calc(100dvh - 64px);padding:12px}h1{font-size:26px}}
+.wx{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:13px}.wx select{margin:0;flex:1;padding:6px}
+.timeline{margin-top:14px;padding:10px;border:1px solid #e8c77a58;border-radius:7px}
+.timeline legend{color:#ffe1a3;padding:0 5px}.timeline input{accent-color:#ecd3a0}
+.timeline input[type=date]{flex:1;min-width:0;padding:5px;background:#3a4639;color:#fff1d3;color-scheme:dark;border:1px solid #e8c77a58;border-radius:5px}
+.timeline input[type=range]{display:block;width:100%;margin:8px 0 0}
+.timeline output{display:block;margin-top:6px;font-size:12px;color:#e3d0a7}
+#rooms{margin:7px 0 1px}#roomPanel{display:none}.room-open #roomPanel{display:block}.room-open #labels,.room-open #info{display:none}#backRoom{margin-top:7px}
+</style>
+<div id="labels"></div>
+<button id="settingsToggle" type="button" popovertarget="settingsMenu"><span aria-hidden="true">⚙</span> Cài đặt</button>
+<aside id="settingsMenu" popover aria-labelledby="settingsTitle">
+ <h1 id="settingsTitle">Tử Cấm Thành</h1>
+ <small>1 đơn vị Three.js bằng 1 mét</small>
+ <select id="places" aria-label="Chọn công trình"></select>
+ <label class="wx">Lộ trình NPC <select id="npcRoutes"><option value="">Ẩn lộ trình</option></select></label>
+ <div class="row"><button id="all">Toàn cảnh</button><button id="plan">Mặt bằng</button><button id="walk" aria-pressed="false">Đi bộ</button><button id="guide" aria-pressed="false">Đi theo tuyến</button><button id="measure" aria-pressed="false">Đo ngang</button></div>
+ <fieldset class="timeline">
+  <legend>Thời gian và thời tiết</legend>
+  <label class="wx">Ngày trong game <input id="gameDate" type="date" min="0100-01-01" max="9999-12-31"></label>
+  <label class="wx">Mốc giờ <select id="gamePhase">
+   <optgroup label="Bình minh – Hoàng hôn"><option value="dawn">Bình minh</option><option value="dusk">Hoàng hôn</option></optgroup>
+   <option value="day">Sáng</option><option value="night">Tối</option>
+  </select></label>
+  <input id="gameMinute" type="range" min="0" max="1439" aria-label="Giờ trong ngày">
+  <label class="wx">Thời tiết <select id="weather"></select></label>
+  <output id="climateStatus" for="gameDate gamePhase gameMinute weather" aria-live="off"></output>
+ </fieldset>
+ <p id="info"></p><select id="rooms" aria-label="Xem nội thất"><option value="">Xem nội thất…</option></select>
+ <div id="roomPanel"><p id="roomInfo"></p><a id="roomSource">Tư liệu của bảo tàng</a><br><button id="backRoom">Về Cố Cung</button></div>
+ <details><summary>Kích thước và tài liệu</summary>
+ <p>Vòng thành 753 m đông–tây và 961 m bắc–nam. Thân tường cao 9,90 m, dày 8,62 m ở chân và 6,66 m ở đỉnh. Hào rộng 52 m. Nền đài Ngọ Môn cao 12 m. Điện Thái Hòa dùng cao độ đỉnh mái 35,05 m và nền 8,13 m.</p>
+ <p>Dữ liệu mặt bằng nhúng trong file theo giấy phép ODbL. Đường bao công trình lấy từ OpenStreetMap và quy đổi sang mét, xoay theo trục cung điện. Tuyến đi và đường bao theo OpenStreetMap. Các cụm có dữ liệu phần mái dùng đường bao và cao độ từ bản đồ. Chi tiết thiếu tư liệu và ba gian nội thất cắt mở được tái dựng minh họa. Mô hình dùng để tham quan và đo tham khảo.</p>
+ <p><a href="https://intl.dpm.org.cn/visit.html">Sơ đồ tham quan</a> · <a href="https://intl.dpm.org.cn/explore/build_maps.html">Bản đồ kiến trúc</a> · <a href="https://www.dpm.org.cn/explore/building/236441.html">Hồ sơ tường thành</a> · <a href="https://www.dpm.org.cn/explore/building/236465.html">Điện Thái Hòa</a> · <a href="https://www.dpm.org.cn/explore/building/236454.html">Ngọ Môn</a> · <a href="https://www.dpm.org.cn/architectural_art/246281.html">Năm cầu đá</a> · <a href="https://www.dpm.org.cn/lemmas/244055.html">Lối lát cuội Ngự Hoa Viên</a> · <a href="https://www.dpm.org.cn/explode/others/256302.html">Bố cục Đông và Tây lục cung</a> · <a href="https://www.dpm.org.cn/explore/building/236477.html">Cửu Long Bích</a></p></details>
+</aside>
+<div id="directions" aria-label="Điều khiển đi bộ"><button data-code="KeyW" aria-label="Tiến">↑</button><button data-code="KeyA" aria-label="Trái">←</button><button data-code="KeyS" aria-label="Lùi">↓</button><button data-code="KeyD" aria-label="Phải">→</button></div>
+<div id="status" role="status">Kéo để xoay · Cuộn để thu phóng</div>
+<a id="credit" href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors · ODbL</a>
+<script type="module" src="/src/main.js"></script>
+
+</html>

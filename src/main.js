@@ -1,0 +1,71 @@
+// Điểm vào: nạp dữ liệu bản đồ rồi dựng thế giới theo đúng thứ tự.
+import {setData} from './data.js';
+import {buildDom} from './core/dom.js';
+import {buildScene} from './core/scene.js';
+import {buildSky} from './core/sky.js';
+import {buildUtils} from './core/utils.js';
+import {buildTextures} from './materials/textures.js';
+import {buildWeather} from './materials/weather.js';
+import {buildOrnaments} from './builders/ornaments.js';
+import {buildPrimitives} from './builders/primitives.js';
+import {buildCourts} from './world/courts.js';
+import {buildMoat} from './world/moat.js';
+import {buildRampart} from './world/rampart.js';
+import {buildWumen} from './world/wumen.js';
+import {buildWater} from './world/water.js';
+import {buildTaihe} from './world/taihe.js';
+import {buildLandmarks} from './world/landmarks.js';
+import {buildWalls} from './world/walls.js';
+import {buildMappedBuildings} from './world/mappedBuildings.js';
+import {buildLandscape} from './world/landscape.js';
+import {buildTrees} from './world/trees.js';
+import {buildProps} from './world/props.js';
+import {buildFinalize} from './world/finalize.js';
+import {buildGame1,buildGame2,buildGame4} from './app/game.js';
+import {buildRooms} from './rooms/rooms.js';
+import {buildNpcs} from './npc/npcs.js';
+import {buildWeatherFx} from './weather/weather.js';
+import {buildBirds} from './fauna/birds.js';
+import {buildCats} from './fauna/cats.js';
+import {buildSmoke} from './fx/smoke.js';
+import {buildLanterns} from './world/lanterns.js';
+
+async function start(){
+ try{
+  const res=await fetch(import.meta.env.BASE_URL+'data/forbidden-city.json');
+  if(!res.ok)throw new Error('Không tải được dữ liệu bản đồ ('+res.status+')');
+  setData(await res.json());
+  buildDom();
+  buildScene();
+  buildSky();
+  buildUtils();
+  buildTextures();
+  buildWeather();
+  buildOrnaments();
+  buildPrimitives();
+  buildCourts();
+  buildMoat();
+  buildRampart();
+  buildWumen();
+  buildWater();
+  buildTaihe();
+  buildLandmarks();
+  buildWalls();
+  buildMappedBuildings();
+  buildLandscape();
+  buildTrees();
+  buildProps();
+  buildFinalize();
+  buildGame1();
+  buildRooms();
+  buildGame2();
+  buildNpcs();
+  buildWeatherFx();
+  buildBirds();
+  buildCats();
+  buildSmoke();
+  buildLanterns();
+  buildGame4();
+ }catch(error){document.getElementById('status').textContent='Không mở được cảnh 3D. '+error.message;console.error(error)}
+}
+start();
