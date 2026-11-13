@@ -44,7 +44,12 @@ details{margin-top:11px;font-size:12px;line-height:1.5}summary{cursor:pointer}a{
  <h1 id="settingsTitle">Tử Cấm Thành</h1>
  <small>1 đơn vị Three.js bằng 1 mét</small>
  <select id="places" aria-label="Chọn công trình"></select>
- <label class="wx">Lộ trình NPC <select id="npcRoutes"><option value="">Ẩn lộ trình</option></select></label>
+ <button id="npcAssembly" type="button">Xem đội hình NPC trước Ngọ Môn</button>
+ <details>
+  <summary>NPC chức vị cao</summary>
+  <label class="wx">Chức vị <select id="royalNpc"></select></label>
+  <button id="royalView" type="button">Xem NPC</button>
+ </details>
  <div class="row"><button id="all">Toàn cảnh</button><button id="plan">Mặt bằng</button><button id="walk" aria-pressed="false">Đi bộ</button><button id="guide" aria-pressed="false">Đi theo tuyến</button><button id="measure" aria-pressed="false">Đo ngang</button></div>
  <fieldset class="timeline">
   <legend>Thời gian và thời tiết</legend>

@@ -27,8 +27,8 @@ src/materials/              texture canvas và shader phong hóa
 src/builders/               hàm dựng: khối cơ bản, mái, điện, chi tiết kiến trúc
 src/world/                  từng khu vực/lớp của Tử Cấm Thành
 src/player/collision.js     va chạm khi đi bộ (dùng chung cho NPC)
-src/npc/npcs.js             mô hình và chuyển động của thái giám, cung nữ, lính canh
-src/npc/deployment.js       sân trung tâm, chốt gác, tuyến tuần tra và giới hạn 400 NPC
+src/npc/npcs.js             mô hình cung nữ, thái giám và lính đứng theo đội hình
+src/npc/deployment.js       đội hình NPC tại sân trước Ngọ Môn
 src/fauna/                  chim (bay đàn, nhặt hạt dưới sân) và mèo Cố Cung
 src/weather/                lịch ngày đêm Bắc Kinh, mùa, mưa, tuyết
 src/fx/smoke.js             khói hương từ đỉnh đồng

@@ -6,7 +6,8 @@ import {sky} from '../core/sky.js';
 import {vec} from '../core/utils.js';
 import {data} from '../data.js';
 import {waterNormal} from '../materials/textures.js';
-import {formations,npcs,updateNPCs} from '../npc/npcs.js';
+import {npcs,updateNPCs} from '../npc/npcs.js';
+import {royalNpcs} from '../npc/royal.js';
 import {setWeather,updateWeather} from '../weather/weather.js';
 import {WX} from '../weather/uniforms.js';
 import {birdGroundSpots,updateBirds} from '../fauna/birds.js';
@@ -117,7 +118,7 @@ export function render(){
   el.hidden=walking||v.z< -1||v.z>1||Math.abs(v.x)>1||Math.abs(v.y)>1||overlaps||farLabel||(distance>750&&![0,1,2,6,9,15].includes(i));
   if(!el.hidden){el.style.left=x+'px';el.style.top=y+'px';shown.push(rect)}
  }
- updateWeather(dt);updateNPCs(dt);updateLanterns();updateBirds(dt);updateCats(dt);updateSmoke(dt);sky.position.copy(camera.position);waterNormal.offset.x+=dt*.012;waterNormal.offset.y+=dt*.006;
+ updateWeather(dt);updateNPCs();updateLanterns();updateBirds(dt);updateCats(dt);updateSmoke(dt);sky.position.copy(camera.position);waterNormal.offset.x+=dt*.012;waterNormal.offset.y+=dt*.006;
  renderer.render(scene,camera);renderer.shadowMap.autoUpdate=false;
 }
 
@@ -226,35 +227,27 @@ addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updat
 }
 
 export function buildGame4(){
+const royalSelect=ui('royalNpc');
+for(const npc of royalNpcs)royalSelect.add(new Option(npc.title,npc.id));
+ui('royalView').onclick=()=>{
+ const npc=royalNpcs.find(n=>n.id===royalSelect.value);
+ view(npc.rig.position.x,npc.rig.position.z,1,8,.28,.22);
+ ui('info').textContent=npc.title+' · Sân trước Ngọ Môn';
+ ui('settingsMenu').hidePopover();
+};
+ui('npcAssembly').onclick=()=>{
+ view(0,576,0,86,0,.77);
+ ui('info').textContent='Đội hình NPC · Sân trước Ngọ Môn';
+ ui('settingsMenu').hidePopover();
+};
 ui('info').textContent=places[0].name+' · '+places[0].note;
-const routeSelect=ui('npcRoutes');
-const namedRoutes=formations.filter(group=>group.name);
-const npcRouteLine=new THREE.LineLoop(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:'#ffbd58',depthTest:false}));
-npcRouteLine.visible=false;
-npcRouteLine.renderOrder=20;
-scene.add(npcRouteLine);
-namedRoutes.forEach((group,index)=>{
- routeSelect.add(new Option(group.name,index));
-});
-routeSelect.addEventListener('change',()=>{
- npcRouteLine.visible=routeSelect.value!=='';
- if(!npcRouteLine.visible){ui('info').textContent=places[+ui('places').value].note;return}
- const group=namedRoutes[Number(routeSelect.value)];
- const points=group.route.edges.map(edge=>vec(edge.x,.35,edge.z));
- const bounds=new THREE.Box3().setFromPoints(points);
- const center=bounds.getCenter(new THREE.Vector3());
- const size=bounds.getSize(new THREE.Vector3());
- npcRouteLine.geometry.dispose();
- npcRouteLine.geometry=new THREE.BufferGeometry().setFromPoints(points);
- view(center.x,center.z,0,Math.max(60,size.length()*1.7),0,1.36);
- ui('info').textContent=group.name+' · '+group.count+' người · '+Math.round(group.route.total)+' m';
-});
 render();
 window.palaceModel={unitsPerMeter:1,wall:[753,961,9.9,8.62,6.66],moatWidth:52,taiheHeight:35.05,footprints:detailedBuildings,mappedRoofParts,places:places.length,rooms:roomScenes.length,position:()=>[px,pz]};
 // Lệnh gỡ lỗi trong console: palaceModel.setWeather('snow'), palaceModel.walkTo(0,300)
 window.palaceModel.setWeather=setWeather;
 window.palaceModel.weatherUniforms=WX;
 window.palaceModel.npcCount=()=>npcs.length;
+window.palaceModel.royalNpcCount=()=>royalNpcs.length;
 window.palaceModel.birdSpots=birdGroundSpots;
 window.palaceModel.catSpots=catSpots;
 window.palaceModel.walkTo=(x,z,yw=0,lk=0)=>{setWalk(true);px=x;pz=z;yaw=yw;look=lk;feet=walkableFloor(x,z,0)??0};

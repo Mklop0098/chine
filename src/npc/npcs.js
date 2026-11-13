@@ -1,15 +1,13 @@
-// Thái giám và cung nữ triều Thanh: trang phục, đi lại tự do, đoàn người theo trục chính (instancing).
+// Instanced models for the stationary palace staff and guards.
 import * as THREE from 'three';
 import {scene} from '../core/scene.js';
-import {data} from '../data.js';
 import {walkableFloor} from '../player/collision.js';
 import {SKY} from '../weather/uniforms.js';
 import {offerCarriedLantern} from '../world/lanterns.js';
-import {NPC_LIMIT,planDeployment,routePose} from './deployment.js';
+import {commonRanks,rankPositions} from './deployment.js';
 
-export let npcRand,lathe,npcGeo,nm,npcMats,partDefs,pick,eunuchRobes,eunuchJackets,eunuchHats,maidRobes,maidVests,plumTrim,seniorRobes,seniorVests,goldTrim,flowers,npcSpots,npcs,npcMeshes,_B,_A,_T,_R,_S,_G,npcTime;
+export let npcRand,lathe,npcGeo,nm,npcMats,partDefs,pick,npcSpots,npcs,npcMeshes,_B,_A,_T,_R,_S,_G;
 let nightPole, nightBody, dayItems;
-export let formations;
 const lanternCenter=new THREE.Vector3(0,-.62,.68);
 
 export function segGeo(a,b,r){
@@ -24,7 +22,7 @@ export function mergeGeos(list){
  const m=new THREE.BufferGeometry();m.setAttribute('position',new THREE.Float32BufferAttribute(P,3));m.setAttribute('normal',new THREE.Float32BufferAttribute(N,3));return m;
 }
 
-export function makeSpec(type){
+export function makeSpec(type,role){
  const s={type,parts:{},colors:{}};
  const on=(k,c)=>{s.parts[k]=true;if(c)s.colors[k]=c};
  if(type==='guard'){
@@ -32,6 +30,7 @@ export function makeSpec(type){
   on('neck');on('head');on('queue');on('hatCone','#342026');on('guardPlume');
   on('arm','#653530');on('cuff');on('hand');on('shoe','#17191d');
  }else if(type==='eunuch'){
+  const {eunuchRobes,eunuchJackets,eunuchHats}=role.wardrobe;
   const robe=pick(eunuchRobes);on('robe',robe);on('hem',robe);
   if(npcRand()<.75)on('jacket',pick(eunuchJackets));
   on('neck');on('head');on('queue');
@@ -41,6 +40,7 @@ export function makeSpec(type){
   const r=npcRand();s.item=r<.3?'whisk':r<.4?'lantern':null;
  }else{
   const senior=type==='senior';
+  const {maidRobes,maidVests,plumTrim,seniorRobes,seniorVests,goldTrim,flowers}=role.wardrobe;
   const robe=pick(senior?seniorRobes:maidRobes),vest=pick(senior?seniorVests:maidVests),trim=pick(senior?goldTrim:plumTrim);
   on('robe',robe);on('hem',trim);on('jacket',vest);on('vestTrim',trim);on('vestEdge',trim);
   on('collar');on('neck');on('head');on('hair');on('board');on('flower',pick(flowers));
@@ -57,58 +57,28 @@ export function makeSpec(type){
 }
 
 function spawn(type,x,z,h,extra={}){
- const y=walkableFloor(x,z,0)??0;
- const n={spec:makeSpec(type),x,z,y,ry:y,h,phase:npcRand()*6,...extra};
+ const y=walkableFloor(x,z,0);
+ const n={spec:makeSpec(type,extra.role),x,z,y,h,...extra};
  npcs.push(n);
  return n;
 }
 
-function spawnFormation(route,count,offset,speed,role,{eunuchs=0,name}={}){
- if(npcs.length+count>NPC_LIMIT)return;
- const formation={route,progress:offset,speed,count,name};
- formations.push(formation);
- for(let i=0;i<count;i++){
-  const gap=i*1.45;
-  const [x,z,h]=routePose(route,offset-gap);
-  const type=role==='guard'?'guard':role==='sweep'||i<eunuchs?'eunuch':i===eunuchs&&count>=6?'senior':'maid';
-  const n=spawn(type,x,z,h,{formation,gap,sweep:role==='sweep'});
-  if(n.sweep){
-   for(const key of ['whiskH','whiskT','lanternPole','lanternBody'])delete n.spec.parts[key];
-   n.spec.item='broom';
-   n.spec.parts.broomStick=n.spec.parts.broomHead=true;
-  }
- }
-}
-
-export function updateNPCs(dt){
+export function updateNPCs(){
  if(!npcs.length)return;
- npcTime+=dt;
  const night=SKY.uNight.value;
  const carryLantern=night>.15;
  nightPole.visible=nightBody.visible=carryLantern;
  nightBody.material.emissiveIntensity=night*2.8;
  for(const mesh of dayItems)mesh.visible=!carryLantern;
- for(const group of formations){
-  group.progress=(group.progress+dt*group.speed)%group.route.total;
- }
  let lanternIndex=0;
  for(const n of npcs){
-  const moving=!!n.formation;
-  if(moving){
-   const {route,progress,speed}=n.formation;
-   const [x,z,heading]=routePose(route,progress-n.gap);
-   const turn=Math.atan2(Math.sin(heading-n.h),Math.cos(heading-n.h));
-   n.x=x;n.z=z;n.h+=THREE.MathUtils.clamp(turn,-dt*6,dt*6);
-   n.phase+=dt*speed*5.2;
-  }
-  n.ry+=(n.y-n.ry)*Math.min(1,dt*12);
-  const s=n.spec.scale,sw=moving?Math.sin(n.phase):0,bob=moving?Math.abs(Math.cos(n.phase))*.022:0;
+  const s=n.spec.scale;
   _S.makeScale(s,s,s);
-  _B.makeRotationY(n.h).setPosition(n.x,n.ry+bob,n.z).multiply(_S);
-  _G.makeTranslation(n.x,n.ry+.025,n.z).multiply(_S);
-  const carries=carryLantern&&moving&&!n.sweep;
+  _B.makeRotationY(n.h).setPosition(n.x,n.y,n.z).multiply(_S);
+  _G.makeTranslation(n.x,n.y+.025,n.z).multiply(_S);
+  const carries=carryLantern&&n.spec.type!=='guard'&&!n.sweep;
   const holding=carries||!!n.spec.item;
-  const leftArmAngle=-.62+sw*.05;
+  const leftArmAngle=-.62;
   if(carries){
    _A.copy(_B).multiply(_T.makeTranslation(-.215,1.42,0)).multiply(_R.makeRotationZ(-.1)).multiply(_R.makeRotationX(leftArmAngle));
    nightPole.setMatrixAt(lanternIndex,_A);
@@ -122,13 +92,11 @@ export function updateNPCs(dt){
    else if(sl.kind==='ground')m.setMatrixAt(sl.i,_G);
    else if(sl.kind==='arm'||sl.kind==='item'){
     const side=sl.kind==='item'?-1:sl.side;
-    let ang=side<0&&holding?leftArmAngle:sw*.38*side,rz=side*.1;
-    if(n.sweep&&side<0){const sw2=Math.sin(npcTime*2.6+n.x);ang=-.25+sw2*.12;rz=-.1+sw2*.42}
+    const ang=side<0&&holding?(n.sweep?-.25:leftArmAngle):0,rz=side*.1;
     _A.copy(_B).multiply(_T.makeTranslation(side*.215,1.42,0)).multiply(_R.makeRotationZ(rz)).multiply(_R.makeRotationX(ang));
     m.setMatrixAt(sl.i,_A);
    }else if(sl.kind==='foot'){
-    const f=sw*sl.side,lift=n.moving?Math.max(0,Math.cos(n.phase)*sl.side)*.045:0;
-    _A.copy(_B).multiply(_T.makeTranslation(sl.side*.085,lift+(sl.k==='shoe'&&n.spec.parts.sole?.06:0),f*.17));
+    _A.copy(_B).multiply(_T.makeTranslation(sl.side*.085,sl.k==='shoe'&&n.spec.parts.sole?.06:0,0));
     m.setMatrixAt(sl.i,_A);
    }
   }
@@ -197,19 +165,6 @@ partDefs={
  shadow:['shadow','ground']
 };
 pick=a=>a[Math.floor(npcRand()*a.length)];
-// Thái giám: màu trầm (xanh đậm, xám, đen, nâu, xanh cổ vịt), không dùng màu vàng
-eunuchRobes=['#26344d','#2d3a4f','#4a4e54','#5a5d61','#1c1d21','#4a3a2c','#5b4634','#22504f','#2e5e5c'];
-eunuchJackets=['#141418','#1d2029','#26221f','#2a2d33'];
-eunuchHats=['#141417','#1c1d22','#2a2622'];
-// Cung nữ phổ thông: tiện bào xanh lơ, khảm khiên xanh đậm viền thêu hoa mai
-maidRobes=['#8fc4d6','#9acbd8','#86bccf','#a1cfdb'];
-maidVests=['#22385a','#1f3354','#283f63'];
-plumTrim=['#f1d3dc','#ecc0cd','#f6e6ea'];
-// Đại cung nữ: màu phong phú, thêu tinh tế hơn
-seniorRobes=['#c9a9d6','#e3b1c0','#a6cdb4','#d8c3a0','#b7c6e4','#e7c6b0'];
-seniorVests=['#5a2f4e','#30476b','#2f5a49','#6b3a33','#3f3a6b'];
-goldTrim=['#e8c983','#f0dca6','#e2b8c8'];
-flowers=['#e45d79','#f2c6d2','#d9364a','#f6efe6','#c76bd1'];
 // Điểm đi lại hợp lệ trên mặt sân
 npcSpots=[];
 for(let i=0;i<14000&&npcSpots.length<4200;i++){
@@ -218,17 +173,14 @@ for(let i=0;i<14000&&npcSpots.length<4200;i++){
  if(y!==null&&y<.5)npcSpots.push([x,z]);
 }
 npcs=[];
-formations=[];
-const {groups,patrols,posts,courtRoutes}=planDeployment(data);
-for(let i=0;i<20;i++){
- const route=courtRoutes[i%courtRoutes.length];
- spawnFormation(route,1,(i*7.1+route.total*.45)%route.total,.34,'sweep');
-}
-for(const group of groups)spawnFormation(group.route,group.count,group.offset,.95,'staff',group);
-for(const patrol of patrols)spawnFormation(patrol.route,patrol.count,patrol.offset,1.17,'guard',patrol);
-for(const {x,z,heading} of posts){
- if(npcs.length>=NPC_LIMIT)break;
- spawn('guard',x,z,heading);
+for(const rank of commonRanks){
+ for(const [x,z] of rankPositions(rank)){
+  const n=spawn(rank.type,x,z,0,{sweep:rank.sweep,role:rank.role});
+  if(!n.sweep)continue;
+  for(const key of ['whiskH','whiskT','lanternPole','lanternBody'])delete n.spec.parts[key];
+  n.spec.item='broom';
+  n.spec.parts.broomStick=n.spec.parts.broomHead=true;
+ }
 }
 // Tạo instanced mesh cho từng bộ phận
 npcMeshes={};
@@ -273,5 +225,4 @@ _T=new THREE.Matrix4();
 _R=new THREE.Matrix4();
 _S=new THREE.Matrix4();
 _G=new THREE.Matrix4();
-npcTime=0;
 }

@@ -24,6 +24,7 @@ import {buildFinalize} from './world/finalize.js';
 import {buildGame1,buildGame2,buildGame4} from './app/game.js';
 import {buildRooms} from './rooms/rooms.js';
 import {buildNpcs} from './npc/npcs.js';
+import {buildRoyalNpcs} from './npc/royal.js';
 import {buildWeatherFx} from './weather/weather.js';
 import {buildBirds} from './fauna/birds.js';
 import {buildCats} from './fauna/cats.js';
@@ -60,6 +61,7 @@ async function start(){
   buildRooms();
   buildGame2();
   buildNpcs();
+  buildRoyalNpcs();
   buildWeatherFx();
   buildBirds();
   buildCats();
