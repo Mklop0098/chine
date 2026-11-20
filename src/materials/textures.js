@@ -1,8 +1,14 @@
 // Texture vẽ bằng canvas (ngói, gạch sân, cỏ, nước, vải, cửa, đá chạm…) và vật liệu cơ bản.
 import * as THREE from 'three';
-import {material,pattern,random} from '../core/utils.js';
+import {heightMap,isolated,material,pattern,random} from '../core/utils.js';
 
-export let tiles,courtTex,grassTex,groundTex,waterNormal,grayTiles,roofGold,roofDark,red,deep,wallRed,stone,baseStone,grass,water,glaze,gold,paved,staticMeshes,solids,waterways,bridges,fabric,doors,masonry,carving,pebbleTex,paintedBeam,doorPanels,darkMasonry,carvedStone,gardenPebbles,grayCourt,paleCourt,bronze,foliageRock,oldBark,poolDeck;
+export let tileBump,courtBump,beamBump,doorBump,lawn,tiles,courtTex,grassTex,groundTex,waterNormal,grayTiles,roofGold,roofDark,red,deep,wallRed,stone,baseStone,grass,water,glaze,gold,paved,staticMeshes,solids,waterways,bridges,fabric,doors,masonry,carving,pebbleTex,paintedBeam,doorPanels,darkMasonry,carvedStone,gardenPebbles,grayCourt,paleCourt,bronze,foliageRock,oldBark,poolDeck;
+
+// Bump map suy từ texture màu (mạch vữa, đinh cửa, hoa văn chạm) qua bộ lọc canvas: không tốn thêm random().
+export function bumpFrom(tex,filter='grayscale(1)'){
+ const img=tex.image,t=heightMap(img.width,img.height,c=>{c.filter=filter;c.drawImage(img,0,0)});
+ t.repeat.copy(tex.repeat);return t;
+}
 
 export function buildTextures(){
 tiles=pattern(256,256,c=>{
@@ -23,7 +29,48 @@ tiles=pattern(256,256,c=>{
   }
  }
 });
-tiles.anisotropy=8;
+// Bản ngói chi tiết 512px thay cho bản cũ (bản cũ vẫn vẽ để giữ nguyên chuỗi random()).
+tiles.dispose();
+{
+ const S=512,cols=8,cw=S/cols,rows=8,rh=S/rows;
+ // Ngói ống (cover) lồi xen ngói lòng máng (pan) lõm; mỗi hàng chồng mí, đầu ngói có bóng.
+ const paint=height=>c=>{
+  c.fillStyle=height?'#1a1a1a':'#4a3110';c.fillRect(0,0,S,S);
+  for(let i=0;i<cols;i++){
+   const x=i*cw;
+   // lòng máng giữa hai ống ngói
+   const pan=c.createLinearGradient(x+cw*.5,0,x+cw*1.5,0);
+   if(height){pan.addColorStop(0,'#3a3a3a');pan.addColorStop(.5,'#202020');pan.addColorStop(1,'#3a3a3a')}
+   else{pan.addColorStop(0,'#8a6220');pan.addColorStop(.5,'#5c3e12');pan.addColorStop(1,'#8a6220')}
+   c.fillStyle=pan;c.fillRect(x+cw*.5,0,cw,S);
+   if(i===cols-1){c.save();c.translate(-S,0);c.fillRect(x+cw*.5,0,cw,S);c.restore()}
+  }
+  for(let i=0;i<cols;i++){
+   const x=i*cw,w=cw*.56,x0=x+(cw-w)/2;
+   for(let j=0;j<rows;j++){
+    const y=j*rh,v=random();
+    const g=c.createLinearGradient(x0,0,x0+w,0);
+    if(height){g.addColorStop(0,'#404040');g.addColorStop(.5,'#ffffff');g.addColorStop(1,'#404040')}
+    else{g.addColorStop(0,'#6b4818');g.addColorStop(.2,'#c39233');g.addColorStop(.45,'#f6d886');g.addColorStop(.62,'#e2b34b');g.addColorStop(.85,'#a2721e');g.addColorStop(1,'#5a3c12')}
+    c.fillStyle=g;c.fillRect(x0,y,w,rh-3);
+    if(!height){
+     c.fillStyle=v<.5?'rgba(255,240,195,'+((.5-v)*.3).toFixed(3)+')':'rgba(70,46,14,'+((v-.5)*.34).toFixed(3)+')';c.fillRect(x0,y,w,rh-3);
+     c.fillStyle='rgba(255,240,190,.32)';c.fillRect(x0+w*.32,y+2,w*.18,rh-8);
+     // vệt rêu/bụi mờ dưới chân ống ngói
+     if(random()<.3){c.fillStyle='rgba(60,58,30,.18)';c.fillRect(x0,y+rh*.6,w,rh*.4)}
+    }
+    // mí chồng: bóng dưới đầu viên ngói trên
+    const lip=c.createLinearGradient(0,y+rh-12,0,y+rh);
+    lip.addColorStop(0,height?'rgba(0,0,0,0)':'rgba(40,24,6,0)');lip.addColorStop(1,height?'rgba(0,0,0,.7)':'rgba(40,24,6,.5)');
+    c.fillStyle=lip;c.fillRect(x0-2,y+rh-12,w+4,12);
+    c.fillStyle=height?'#ffffff':'rgba(255,236,170,.45)';c.fillRect(x0+2,y,w-4,2);
+   }
+  }
+ };
+ tiles=isolated(7001,()=>pattern(S,S,paint(false)));
+ tileBump=isolated(7001,()=>heightMap(S,S,paint(true)));
+ tiles.anisotropy=tileBump.anisotropy=8;
+}
 courtTex=pattern(512,512,c=>{
  c.fillStyle='#8a8478';c.fillRect(0,0,512,512);
  const bw=512/5,bh=512/10;
@@ -68,18 +115,21 @@ waterNormal=(()=>{
 })();
 grayTiles=pattern(256,256,c=>{c.filter='grayscale(1) brightness(.9) contrast(1.1)';c.drawImage(tiles.image,0,0)});
 grayTiles.anisotropy=8;
-roofGold=new THREE.MeshStandardMaterial({map:tiles,color:'#fff1cf',roughness:.46,side:THREE.DoubleSide});
-roofDark=new THREE.MeshStandardMaterial({map:tiles,color:'#7a7970',roughness:.79,side:THREE.DoubleSide});
+roofGold=new THREE.MeshStandardMaterial({map:tiles,bumpMap:tileBump,bumpScale:3,color:'#fff1cf',roughness:.46,side:THREE.DoubleSide});
+roofDark=new THREE.MeshStandardMaterial({map:tiles,bumpMap:tileBump,bumpScale:3,color:'#7a7970',roughness:.79,side:THREE.DoubleSide});
 red=material('#9e382e');
 deep=material('#542c26');
 wallRed=material('#9d4d3e');
 stone=material('#bdb9a6');
 baseStone=material('#9e9887');
 grass=material('#909b69');
+// Nền cỏ xanh cho bồn cây và vườn (nơi có cỏ, hoa, cây).
+lawn=new THREE.MeshStandardMaterial({map:grassTex,color:'#b4d38a',roughness:.96});
 water=material('#58877d');
 glaze=material('#42665c');
 gold=material('#ac793e');
-paved=new THREE.MeshStandardMaterial({map:courtTex,color:'#dcd6ca',roughness:1});
+courtBump=bumpFrom(courtTex,'grayscale(1) contrast(2.2) brightness(1.1)');
+paved=new THREE.MeshStandardMaterial({map:courtTex,bumpMap:courtBump,bumpScale:1.4,color:'#dcd6ca',roughness:1});
 staticMeshes=[];
 solids=[];
 waterways=[];
@@ -137,13 +187,43 @@ pebbleTex=pattern(192,192,c=>{
   c.beginPath();c.ellipse(x,y,size,size*.64,random()*6,0,6.283);c.fill();
  }
 });
-paintedBeam=new THREE.MeshStandardMaterial({map:fabric,roughness:.79});
-doorPanels=new THREE.MeshStandardMaterial({map:doors,roughness:.83});
-darkMasonry=new THREE.MeshStandardMaterial({map:masonry,color:'#c1b7a7',roughness:.95});
-carvedStone=new THREE.MeshStandardMaterial({map:carving,roughness:.87});
+// Xà vẽ kiểu "toàn tử thải họa": dải xanh lục – lam, hoa xoáy ở hai đầu, ô giữa có rồng/hoa vàng.
+fabric.dispose();
+fabric=pattern(512,256,c=>{
+ const W=512,H=256;
+ c.fillStyle='#1f4f5c';c.fillRect(0,0,W,H);
+ const cell=128;
+ for(let k=0;k<4;k++){
+  const x=k*cell,blue=k%2===0;
+  c.fillStyle=blue?'#2a6170':'#2f6a4c';c.fillRect(x,18,cell,H-36);
+  // khung ô
+  c.strokeStyle='#e7c46c';c.lineWidth=4;c.strokeRect(x+6,26,cell-12,H-52);
+  c.strokeStyle='#f3efe2';c.lineWidth=2;c.strokeRect(x+12,32,cell-24,H-64);
+  // hoa xoáy (xuanzi): vòng cánh lồng nhau
+  const cx=x+cell/2,cy=H/2;
+  for(const [r,col] of [[46,'#f3efe2'],[38,blue?'#3f8ea0':'#4d9a6c'],[30,'#f3efe2'],[23,blue?'#2a6170':'#2f6a4c']]){
+   c.fillStyle=col;
+   for(let p=0;p<10;p++){const a=p/10*6.283;c.beginPath();c.ellipse(cx+Math.cos(a)*r*.55,cy+Math.sin(a)*r*.55,r*.48,r*.22,a,0,6.283);c.fill()}
+  }
+  const core=c.createRadialGradient(cx-3,cy-3,1,cx,cy,14);core.addColorStop(0,'#fff2b0');core.addColorStop(.6,'#d9a443');core.addColorStop(1,'#7a5214');
+  c.fillStyle=core;c.beginPath();c.arc(cx,cy,13,0,6.283);c.fill();
+  // nửa hoa xoáy ở góc
+  c.fillStyle='#e7c46c';for(const [qx,qy] of [[x+12,32],[x+cell-12,32],[x+12,H-32],[x+cell-12,H-32]]){c.beginPath();c.arc(qx,qy,8,0,6.283);c.fill()}
+ }
+ c.fillStyle='#c79a45';c.fillRect(0,0,W,8);c.fillRect(0,H-8,W,8);
+ c.fillStyle='#8c2c22';c.fillRect(0,8,W,10);c.fillRect(0,H-18,W,10);
+ c.fillStyle='rgba(255,240,200,.35)';c.fillRect(0,9,W,2);c.fillRect(0,H-17,W,2);
+});
+fabric.anisotropy=8;
+beamBump=bumpFrom(fabric,'grayscale(1) contrast(1.4)');
+paintedBeam=new THREE.MeshStandardMaterial({map:fabric,bumpMap:beamBump,bumpScale:.8,roughness:.72});
+doorBump=bumpFrom(doors,'grayscale(1) contrast(1.8)');
+doorPanels=new THREE.MeshStandardMaterial({map:doors,bumpMap:doorBump,bumpScale:2,roughness:.8});
+darkMasonry=new THREE.MeshStandardMaterial({map:masonry,bumpMap:bumpFrom(masonry,'grayscale(1) contrast(2)'),bumpScale:2,color:'#c1b7a7',roughness:.95});
+carvedStone=new THREE.MeshStandardMaterial({map:carving,bumpMap:bumpFrom(carving,'grayscale(1) contrast(2.4)'),bumpScale:2.5,roughness:.87});
 gardenPebbles=new THREE.MeshStandardMaterial({map:pebbleTex,roughness:1,side:THREE.DoubleSide});
-grayCourt=new THREE.MeshStandardMaterial({map:courtTex,color:'#d2cec5',roughness:.97});
-paleCourt=new THREE.MeshStandardMaterial({map:courtTex,color:'#dcd9cb',roughness:.95});
+grayCourt=new THREE.MeshStandardMaterial({map:courtTex,bumpMap:courtBump,bumpScale:1.4,color:'#d2cec5',roughness:.97});
+paleCourt=new THREE.MeshStandardMaterial({map:courtTex,bumpMap:courtBump,bumpScale:1.4,color:'#dcd9cb',roughness:.95});
 bronze=material('#5e6041');
 foliageRock=material('#8b8a77');
 oldBark=material('#635842');

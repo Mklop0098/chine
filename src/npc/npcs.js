@@ -4,7 +4,8 @@ import {scene} from '../core/scene.js';
 import {walkableFloor} from '../player/collision.js';
 import {SKY} from '../weather/uniforms.js';
 import {offerCarriedLantern} from '../world/lanterns.js';
-import {commonRanks,rankPositions} from './deployment.js';
+import {commonRanks,escortRanks,rankPositions} from './deployment.js';
+import {pleat,weaveMaps} from './cloth.js';
 
 export let npcRand,lathe,npcGeo,nm,npcMats,partDefs,pick,npcSpots,npcs,npcMeshes,_B,_A,_T,_R,_S,_G;
 let nightPole, nightBody, dayItems;
@@ -29,6 +30,7 @@ export function makeSpec(type,role){
   on('robe','#3c3544');on('hem','#842e25');on('guardVest');on('guardBelt');
   on('neck');on('head');on('queue');on('hatCone','#342026');on('guardPlume');
   on('arm','#653530');on('cuff');on('hand');on('shoe','#17191d');
+  on('lipsM');on('studs');on('scabbard');on('hilt');on('bootTop','#17191d');on('collarM');
  }else if(type==='eunuch'){
   const {eunuchRobes,eunuchJackets,eunuchHats}=role.wardrobe;
   const robe=pick(eunuchRobes);on('robe',robe);on('hem',robe);
@@ -37,17 +39,20 @@ export function makeSpec(type,role){
   const hat=pick(eunuchHats);
   if(npcRand()<.55){on('cap',hat);on('capBand');on('knob')}else{on('hatCone',hat);on('tassel')}
   on('arm',robe);on('cuff');on('hand');on('shoe','#18181b');
+  on('lipsM');on('buttons');on('sash',pick(eunuchJackets));on('collarM');
   const r=npcRand();s.item=r<.3?'whisk':r<.4?'lantern':null;
  }else{
   const senior=type==='senior';
   const {maidRobes,maidVests,plumTrim,seniorRobes,seniorVests,goldTrim,flowers}=role.wardrobe;
   const robe=pick(senior?seniorRobes:maidRobes),vest=pick(senior?seniorVests:maidVests),trim=pick(senior?goldTrim:plumTrim);
   on('robe',robe);on('hem',trim);on('jacket',vest);on('vestTrim',trim);on('vestEdge',trim);
-  on('collar');on('neck');on('head');on('hair');on('board');on('flower',pick(flowers));
-  if(senior)on('fringe');
+  on('collar');on('neck');on('head');on('hairCap');on('bun');on('board');on('flower',pick(flowers));
+  if(senior)on('fringe');else on('braid');
+  on('lipsF');on('blush');on('earrings');on('plum');on('kerchief');on('hairpin');
   on('arm',robe);on('cuff');on('hand');on('shoe',vest);on('sole');
   const r=npcRand();s.item=senior?(r<.25?'lantern':null):(r<.25?'tray':r<.37?'lantern':null);
  }
+ on('eyes');on('eyeWhites');on('brows');on('ears');on('nose');
  if(s.item==='whisk'){on('whiskH');on('whiskT')}
  if(s.item==='lantern'){on('lanternPole');on('lanternBody')}
  if(s.item==='tray'){on('tray');on('cups')}
@@ -106,33 +111,83 @@ export function updateNPCs(){
  for(const {mesh} of Object.values(npcMeshes))mesh.instanceMatrix.needsUpdate=true;
 }
 
+// Nếp áo: thân dài nhiều nếp sâu dần về gấu; áo gile nếp nông hơn.
+const ROBE_PLEAT={n:16,amp:.014,top:1.0,bottom:.05};
+const VEST_PLEAT={n:12,amp:.007,top:1.1,bottom:.72};
+
+// Đầu: cằm thon, gò má, sống mũi nhô nhẹ (biến dạng khối cầu thay vì cầu tròn trơn).
+function headGeo(){
+ const g=new THREE.SphereGeometry(.105,22,16),p=g.attributes.position;
+ for(let i=0;i<p.count;i++){
+  let x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+  const fy=y/.105,front=Math.max(0,z/.105);
+  // thu hẹp hàm dưới, đầy gò má, lùi thái dương
+  const jaw=fy<-.1?1-.2*Math.min(1,(-.1-fy)/.8):1;
+  const cheek=1+.05*Math.exp(-((fy+.15)**2)/.04)*front;
+  x*=jaw*cheek;z*=jaw;
+  if(front>.85&&Math.abs(x)<.02&&fy>-.35&&fy<.15)z+=.006*(1-Math.abs(x)/.02);
+  if(fy<-.6)z+=.004*front;
+  p.setXYZ(i,x,y,z);
+ }
+ g.computeVertexNormals();
+ return g.scale(.95,1.08,1).translate(0,1.63,.01);
+}
+// Ống tay áo: hơi loe về cổ tay, có nếp nhăn khuỷu.
+function sleeveGeo(){
+ const pts=[[.06,0],[.058,-.06],[.055,-.2],[.058,-.28],[.054,-.3],[.06,-.4],[.068,-.52],[.07,-.56]];
+ const g=new THREE.LatheGeometry(pts.map(([r,y])=>new THREE.Vector2(r,y)),16);
+ return pleat(g,{n:7,amp:.004,top:-.25,bottom:-.56});
+}
+// Bàn tay: lòng bàn tay dẹt + ngón cái tách ra.
+function handGeo(){
+ const palm=new THREE.SphereGeometry(.04,14,10).scale(.75,1.25,.5).translate(0,-.63,.012);
+ const thumb=new THREE.CylinderGeometry(.009,.011,.045,8).rotateZ(.5).translate(.022,-.615,.022);
+ const fingers=new THREE.SphereGeometry(.03,12,8).scale(.85,1.1,.45).translate(0,-.672,.016);
+ return mergeGeos([palm,thumb,fingers]);
+}
+// Giày mũi tròn hơi vểnh, đế dày.
+function shoeGeo(){
+ const g=new THREE.BoxGeometry(.1,.075,.25,4,2,6),p=g.attributes.position;
+ for(let i=0;i<p.count;i++){
+  const x=p.getX(i),y=p.getY(i),z=p.getZ(i),t=(z+.125)/.25;
+  const taper=1-.35*Math.max(0,t-.6)/.4;
+  p.setX(i,x*taper);
+  if(y>0)p.setY(i,y-.03*Math.max(0,t-.55)/.45);
+  if(t>.92&&y>0)p.setY(i,p.getY(i)+.012);
+  p.setX(i,p.getX(i)*(1-.15*Math.max(0,(Math.abs(y)/.0375)-.6)));
+ }
+ g.computeVertexNormals();
+ return g.translate(0,.04,.03);
+}
+
 export function buildNpcs(){
 // ---------- Thái giám & cung nữ triều Thanh (NPC) ----------
 npcRand=(()=>{let s=20261111;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}})();
-lathe=(pts,seg=18)=>new THREE.LatheGeometry(pts.map(([r,y])=>new THREE.Vector2(r,y)),seg);
+lathe=(pts,seg=28)=>new THREE.LatheGeometry(pts.map(([r,y])=>new THREE.Vector2(r,y)),seg);
 npcGeo={
- robe:lathe([[0,.05],[.3,.05],[.285,.3],[.24,.68],[.195,.97],[.2,1.18],[.215,1.35],[.17,1.45],[.07,1.5],[0,1.5]]).scale(1,1,.8),
- jacket:lathe([[0,.72],[.262,.72],[.248,.98],[.228,1.2],[.24,1.37],[.19,1.47],[.08,1.52],[0,1.52]]).scale(1,1,.83),
- hem:lathe([[.305,.05],[.31,.13],[.29,.13],[.285,.05]],18).scale(1,1,.8),
- collar:new THREE.TorusGeometry(.07,.022,6,14).rotateX(Math.PI/2).translate(0,1.505,.0),
- neck:new THREE.CylinderGeometry(.045,.05,.1,8).translate(0,1.55,0),
- head:new THREE.SphereGeometry(.105,14,10).scale(.95,1.08,1).translate(0,1.63,.01),
- cap:new THREE.SphereGeometry(.118,14,7,0,Math.PI*2,0,Math.PI/2).scale(1,.85,1).translate(0,1.65,0),
- capBand:new THREE.CylinderGeometry(.12,.12,.035,14).translate(0,1.66,0),
+ // Áo dài có nếp gấp dọc sâu dần về gấu; gấu viền và áo gile gợn cùng nếp để khớp nhau.
+ robe:pleat(lathe([[0,.05],[.3,.05],[.297,.12],[.285,.3],[.24,.68],[.195,.97],[.2,1.18],[.215,1.35],[.17,1.45],[.07,1.5],[0,1.5]]),ROBE_PLEAT).scale(1,1,.8),
+ jacket:pleat(lathe([[0,.72],[.262,.72],[.255,.8],[.248,.98],[.228,1.2],[.24,1.37],[.19,1.47],[.08,1.52],[0,1.52]]),VEST_PLEAT).scale(1,1,.83),
+ hem:pleat(lathe([[.305,.05],[.31,.13],[.29,.13],[.285,.05]]),ROBE_PLEAT).scale(1,1,.8),
+ collar:new THREE.TorusGeometry(.07,.022,8,24).rotateX(Math.PI/2).translate(0,1.505,.0),
+ neck:new THREE.CylinderGeometry(.045,.05,.1,14).translate(0,1.55,0),
+ head:headGeo(),
+ cap:new THREE.SphereGeometry(.118,24,10,0,Math.PI*2,0,Math.PI/2).scale(1,.85,1).translate(0,1.65,0),
+ capBand:new THREE.CylinderGeometry(.12,.12,.035,24).translate(0,1.66,0),
  knob:new THREE.SphereGeometry(.03,8,6).translate(0,1.76,0),
- hatCone:mergeGeos([new THREE.ConeGeometry(.16,.12,16).translate(0,1.74,0),new THREE.CylinderGeometry(.165,.165,.025,16).translate(0,1.68,0)]),
+ hatCone:mergeGeos([new THREE.ConeGeometry(.16,.12,28).translate(0,1.74,0),new THREE.CylinderGeometry(.165,.165,.025,28).translate(0,1.68,0)]),
  tassel:new THREE.SphereGeometry(.022,8,6).translate(0,1.81,0),
- vestTrim:lathe([[.27,.72],[.272,.8],[.262,.8],[.26,.72]],20).scale(1,1,.83),
+ vestTrim:pleat(lathe([[.27,.72],[.272,.8],[.262,.8],[.26,.72]]),VEST_PLEAT).scale(1,1,.83),
  vestEdge:new THREE.BoxGeometry(.035,.74,.02).translate(.06,1.12,.2),
  queue:new THREE.CylinderGeometry(.024,.01,.62,6).translate(0,-.31,0).rotateX(.1).translate(0,1.62,-.1),
- hair:new THREE.SphereGeometry(.115,14,10).scale(1,1,1.06).translate(0,1.65,-.014),
+ hair:new THREE.SphereGeometry(.115,22,14).scale(1,1,1.06).translate(0,1.65,-.014),
  board:mergeGeos([new THREE.BoxGeometry(.4,.14,.045).translate(0,1.8,-.045),new THREE.CylinderGeometry(.05,.065,.1,8).translate(0,1.72,-.04)]),
  flower:mergeGeos([new THREE.SphereGeometry(.04,8,6).translate(.11,1.81,.0),new THREE.SphereGeometry(.034,8,6).translate(-.13,1.8,0),new THREE.SphereGeometry(.03,8,6).translate(.02,1.86,-.01)]),
  fringe:new THREE.CylinderGeometry(.012,.006,.2,5).translate(.19,1.66,-.03),
- arm:new THREE.CylinderGeometry(.055,.064,.56,8).translate(0,-.28,0),
- cuff:new THREE.CylinderGeometry(.067,.067,.05,8).translate(0,-.565,0),
- hand:new THREE.SphereGeometry(.043,8,6).translate(0,-.625,.01),
- shoe:new THREE.BoxGeometry(.1,.075,.25).translate(0,.04,.03),
+ arm:sleeveGeo(),
+ cuff:new THREE.CylinderGeometry(.067,.071,.06,16).translate(0,-.565,0),
+ hand:handGeo(),
+ shoe:shoeGeo(),
  sole:new THREE.BoxGeometry(.065,.08,.075).translate(0,.0,.04),
  whiskH:new THREE.CylinderGeometry(.016,.016,.34,6).translate(0,-.47,.03),
  whiskT:new THREE.CylinderGeometry(.045,.012,.42,8).translate(0,-.5,-.08),
@@ -142,15 +197,46 @@ npcGeo={
  cups:mergeGeos([new THREE.CylinderGeometry(.04,.03,.05,10).translate(-.08,.04,.12),new THREE.CylinderGeometry(.04,.03,.05,10).translate(.08,.04,.12),new THREE.SphereGeometry(.06,10,8).translate(0,.05,.17)]).rotateX(.62).translate(0,-.6,0),
  broomStick:segGeo([0,-.6,0],[0,-1.62,.86],.016),
  broomHead:new THREE.BoxGeometry(.42,.07,.16).rotateX(-.35).translate(0,-1.66,.92),
- guardVest:lathe([[.28,.68],[.28,.96],[.25,1.24],[.25,1.38],[.19,1.49],[.08,1.51]],16).scale(1,1,.86),
- guardBelt:new THREE.CylinderGeometry(.255,.265,.085,14).scale(1,1,.9).translate(0,1.01,0),
+ guardVest:pleat(lathe([[.28,.68],[.283,.74],[.28,.96],[.25,1.24],[.25,1.38],[.19,1.49],[.08,1.51]]),{n:10,amp:.006,top:1,bottom:.68}).scale(1,1,.86),
+ guardBelt:new THREE.CylinderGeometry(.255,.265,.085,24).scale(1,1,.9).translate(0,1.01,0),
  guardPlume:new THREE.CylinderGeometry(.034,.052,.20,10).translate(0,1.83,0),
- shadow:new THREE.CircleGeometry(.42,18).rotateX(-Math.PI/2)
+ shadow:new THREE.CircleGeometry(.42,18).rotateX(-Math.PI/2),
+ // ---- Chi tiết khuôn mặt, tóc, trang sức, hoa văn (dùng chung cho mọi NPC thường) ----
+ eyeWhites:mergeGeos([-1,1].map(s=>new THREE.SphereGeometry(.0125,8,6).scale(1.45,.72,.4).translate(s*.033,1.645,.106))),
+ eyes:mergeGeos([-1,1].map(s=>new THREE.SphereGeometry(.0078,8,6).scale(1,1,.45).translate(s*.033,1.645,.111))),
+ brows:mergeGeos([-1,1].map(s=>new THREE.BoxGeometry(.034,.006,.006).rotateZ(s*-.12).translate(s*.034,1.668,.107))),
+ ears:mergeGeos([-1,1].map(s=>new THREE.SphereGeometry(.018,8,6).scale(.5,1,.8).translate(s*.1,1.635,.01))),
+ nose:new THREE.SphereGeometry(.009,8,6).scale(.9,1,1.1).translate(0,1.623,.116),
+ lipsF:new THREE.SphereGeometry(.012,10,6).scale(1.5,.55,.5).translate(0,1.594,.108),
+ lipsM:new THREE.SphereGeometry(.011,10,6).scale(1.5,.45,.5).translate(0,1.594,.108),
+ blush:mergeGeos([-1,1].map(s=>new THREE.SphereGeometry(.018,8,6).scale(1.2,.7,.4).translate(s*.05,1.612,.096))),
+ earrings:mergeGeos([-1,1].map(s=>new THREE.SphereGeometry(.0075,6,5).translate(s*.102,1.605,.012))),
+ hairCap:new THREE.SphereGeometry(.112,24,14,0,Math.PI*2,0,Math.PI*.56).scale(1,1.05,1.04).rotateX(-.8).translate(0,1.65,-.005),
+ bun:new THREE.SphereGeometry(.058,18,12).scale(1.2,.8,1).translate(0,1.745,-.04),
+ hairpin:new THREE.CylinderGeometry(.005,.005,.3,6).rotateZ(Math.PI/2).translate(0,1.79,-.03),
+ braid:mergeGeos(Array.from({length:8},(_,i)=>new THREE.SphereGeometry(.03-i*.0016,8,6).scale(1,1.35,.85).translate(0,1.6-i*.068,-.135-i*.006)).concat([new THREE.ConeGeometry(.018,.08,8).rotateX(Math.PI).translate(0,1.03,-.18)])),
+ plum:mergeGeos([[0,.86],[2.8,.92],[-2.8,.92],[Math.PI,1.1],[.6,1.05],[-.6,1.05]].flatMap(([a,y])=>{
+  const J=[[.262,.72],[.248,.98],[.228,1.2],[.24,1.37]],i=J.findIndex(([,yy])=>yy>=y),[r0,y0]=J[i-1],[r1,y1]=J[i],r=r0+(r1-r0)*(y-y0)/(y1-y0)+.006;
+  const x=Math.sin(a)*r,z=Math.cos(a)*r*.83;
+  return Array.from({length:5},(_,k)=>{const t=k/5*6.283;return new THREE.SphereGeometry(.011,6,4).scale(1,1,.4).translate(Math.cos(t)*.013,Math.sin(t)*.013,0).rotateY(a).translate(x,y,z)});
+ })),
+ kerchief:new THREE.PlaneGeometry(.07,.1).translate(0,-.05,0).rotateZ(.2).translate(.085,1.38,.19),
+ collarM:new THREE.CylinderGeometry(.062,.07,.05,20).translate(0,1.5,0),
+ buttons:mergeGeos(Array.from({length:5},(_,i)=>new THREE.SphereGeometry(.012,6,5).translate(.0,1.42-i*.13,.205-(i>2?.0:.012)))),
+ sash:new THREE.CylinderGeometry(.21,.215,.07,28).scale(1,1,.82).translate(0,.97,0),
+ studs:mergeGeos(Array.from({length:24},(_,i)=>{const a=(i%8)/8*6.283+(i>15?.2:0),y=.8+Math.floor(i/8)*.22,r=.282-Math.floor(i/8)*.012;return new THREE.SphereGeometry(.014,6,5).translate(Math.sin(a)*r,y,Math.cos(a)*r*.86)})),
+ scabbard:new THREE.CylinderGeometry(.022,.018,.8,8).rotateX(.35).translate(-.3,.72,-.05),
+ hilt:mergeGeos([new THREE.CylinderGeometry(.015,.015,.16,8).rotateX(.35).translate(-.3,1.17,.1),new THREE.BoxGeometry(.08,.015,.05).rotateX(.35).translate(-.3,1.1,.075)]),
+ bootTop:new THREE.CylinderGeometry(.06,.055,.14,16).translate(0,.11,0)
 };
 nm=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.8,...o});
+const weave=weaveMaps();
 npcMats={
- cloth:nm('#ffffff'),skin:nm('#e2bb98',{roughness:.7}),black:nm('#16161a',{roughness:.55}),red:nm('#b0261d',{roughness:.6}),
+ cloth:nm('#ffffff',{map:weave.map,bumpMap:weave.bump,bumpScale:.5,roughness:.74}),skin:nm('#e2bb98',{roughness:.62}),black:nm('#16161a',{roughness:.55}),red:nm('#b0261d',{roughness:.6}),
  white:nm('#eee7d8'),wood:nm('#5a3b22'),straw:nm('#d9c99b',{roughness:.9}),
+ eye:nm('#1d1414',{roughness:.25}),eyeWhite:nm('#fbf6f0',{roughness:.4}),lip:nm('#b8323f',{roughness:.45}),lipM:nm('#a96a60',{roughness:.6}),
+ blush:nm('#f0a3a0',{transparent:true,opacity:.3,depthWrite:false}),pink:nm('#ef9fb4'),gold:nm('#d9b04a',{metalness:.6,roughness:.35}),
+ silk:nm('#f5c6d4',{side:THREE.DoubleSide}),steel:nm('#8e8f94',{metalness:.7,roughness:.35}),
  lantern:nm('#c42e1f',{emissive:'#5c1209',roughness:.5}),
  shadow:new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:.26,depthWrite:false})
 };
@@ -162,7 +248,12 @@ partDefs={
  arm:['cloth','arm'],cuff:['white','arm'],hand:['skin','arm'],shoe:['cloth','foot'],sole:['white','foot'],
  broomStick:['wood','item'],broomHead:['straw','item'],whiskH:['wood','item'],whiskT:['white','item'],lanternPole:['wood','item'],lanternBody:['lantern','item'],tray:['red','item'],cups:['white','item'],
  guardVest:['black','body'],guardBelt:['wood','body'],guardPlume:['red','body'],
- shadow:['shadow','ground']
+ shadow:['shadow','ground'],
+ eyeWhites:['eyeWhite','body'],eyes:['eye','body'],brows:['black','body'],ears:['skin','body'],nose:['skin','body'],
+ lipsF:['lip','body'],lipsM:['lipM','body'],blush:['blush','body'],earrings:['gold','body'],
+ hairCap:['black','body'],bun:['black','body'],hairpin:['gold','body'],braid:['black','body'],plum:['pink','body'],kerchief:['silk','body'],
+ collarM:['white','body'],buttons:['black','body'],sash:['cloth','body'],studs:['gold','body'],scabbard:['black','body'],hilt:['steel','body'],
+ bootTop:['cloth','foot']
 };
 pick=a=>a[Math.floor(npcRand()*a.length)];
 // Điểm đi lại hợp lệ trên mặt sân
@@ -173,7 +264,7 @@ for(let i=0;i<14000&&npcSpots.length<4200;i++){
  if(y!==null&&y<.5)npcSpots.push([x,z]);
 }
 npcs=[];
-for(const rank of commonRanks){
+for(const rank of [...commonRanks,...escortRanks]){
  for(const [x,z] of rankPositions(rank)){
   const n=spawn(rank.type,x,z,0,{sweep:rank.sweep,role:rank.role});
   if(!n.sweep)continue;

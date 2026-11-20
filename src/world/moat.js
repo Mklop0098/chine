@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import {add,bounds,box,polygon} from '../builders/primitives.js';
 import {data} from '../data.js';
-import {baseStone,darkMasonry,gardenPebbles,groundTex,stone,water} from '../materials/textures.js';
+import {baseStone,darkMasonry,groundTex,lawn,stone,water} from '../materials/textures.js';
 import {edgeBox} from './mappedBuildings.js';
 
 export let sideX,sideZ,moatOffset,moatWidth,moatIn,moatOut,wuHalf,moatY,moatPoly,groundMat;
@@ -58,5 +58,5 @@ for(let i=0;i<moatPoly.length;i++){
 }
 moatBridge(0,-523.5,24,52);
 for(const s of [-1,1])moatBridge(s*(moatIn[0]+moatWidth/2),s>0?eastZWall():westZWall(),52,16);
-for(const p of data.gardens)polygon(p,.038,0,gardenPebbles);
+for(const p of data.gardens)polygon(p,.038,0,lawn);
 }

@@ -7,6 +7,25 @@ import {vec} from '../core/utils.js';
 import {baseStone,carvedStone,deep,doorPanels,paintedBeam,red,roofGold,stone,wallRed} from '../materials/textures.js';
 import {addFacadeLantern} from '../world/lanterns.js';
 
+// Cột gỗ sơn son: thân thu nhỏ dần lên trên (thu phân), mép đáy bo; chân cột đá tảng hình trống chạm cánh sen.
+const colCache=new Map();
+function columnGeo(h){
+ const k=Math.round(h*20)/20;
+ if(!colCache.has(k)){
+  const pts=[[.43,-k/2],[.41,-k/2+.1],[.40,-k/2+.3],[.37,k/2-.25],[.36,k/2]].map(([r,y])=>new THREE.Vector2(r*.95,y));
+  colCache.set(k,new THREE.LatheGeometry(pts,16));
+ }
+ return colCache.get(k);
+}
+const plinthGeo=(()=>{
+ const pts=[[.5,0],[.5,.07],[.47,.1],[.5,.15],[.43,.23],[.0,.23]];
+ const g=new THREE.LatheGeometry(pts.map(([r,y])=>new THREE.Vector2(r,y)),16);
+ // cánh sen: gợn tròn quanh trống đá
+ const p=g.attributes.position;
+ for(let i=0;i<p.count;i++){const a=Math.atan2(p.getZ(i),p.getX(i)),y=p.getY(i),f=y>.08&&y<.21?1+.045*Math.abs(Math.sin(a*8)):1;p.setX(i,p.getX(i)*f);p.setZ(i,p.getZ(i)*f)}
+ g.computeVertexNormals();return g;
+})();
+
 export function columns(x,z,w,d,y,h,bays,ornate){
  for(const side of [-1,1]){
   const front=z+side*d*.39;
@@ -14,8 +33,9 @@ export function columns(x,z,w,d,y,h,bays,ornate){
   box(x,y+h-.69,front,w*.96,.15,.63,red);
   for(let i=0;i<=bays;i++){
    const xx=x+(i/bays-.5)*w*.91;
-   add(new THREE.CylinderGeometry(.34,.41,h,12),red,xx,y+h/2,front,{solid:true});
-   box(xx,y+.18,front,1.02,.36,1.02,baseStone);
+   add(columnGeo(h),red,xx,y+h/2,front,{solid:true});
+   box(xx,y+.09,front,1.02,.18,1.02,baseStone);
+   add(plinthGeo,carvedStone,xx,y+.18,front);
    box(xx,y+h-.73,front,.94,.24,1.05,deep);
    if(ornate){
     for(let row=0;row<3;row++)box(xx,y+h-.7+row*.19,front+side*row*.14,.78+row*.27,.15,.89+row*.26,row%2?paintedBeam:red);
@@ -25,7 +45,7 @@ export function columns(x,z,w,d,y,h,bays,ornate){
  }
 }
 
-export function hall(x,z,w,d,y,top,{double=false,bays=7,open=false,ornate=false,sign='',style='hipped',animals=0,lowerAnimals=0,roofMat=roofGold}={}){
+export function hall(x,z,w,d,y,top,{double=false,bays=7,columnBays=bays,open=false,ornate=false,sign='',style='hipped',animals=0,lowerAnimals=0,roofMat=roofGold}={}){
  const h=top-y,lower=y+h*(double?.49:.63),columnHeight=lower-y;
  if(!open){
   box(x,y+columnHeight/2,z,w*.83,columnHeight,d*.68,deep,true);
@@ -44,7 +64,7 @@ export function hall(x,z,w,d,y,top,{double=false,bays=7,open=false,ornate=false,
    for(let i=0;i<n;i++)box(sx+side*.02,y+columnHeight*.55,z+((i+.5)/n-.5)*d*.6,.14,columnHeight*.38,d*.6/n*.84,windowMat);
   }
  }
- columns(x,z,w,d,y,columnHeight,bays,ornate);
+ columns(x,z,w,d,y,columnHeight,columnBays,ornate);
  for(const side of [-1,1]){
   box(x,lower-.54,z+side*d*.43,w,.42,.5,paintedBeam);
   box(x,lower-.18,z+side*d*.46,w,.31,.44,red);
@@ -66,7 +86,7 @@ export function hall(x,z,w,d,y,top,{double=false,bays=7,open=false,ornate=false,
  }else roof(x,z,w,d,lower,top-lower,roofMat,true,{style,animals});
 }
 
-export function terraceRails(outline,y,south,spouts=true){
+export function terraceRails(outline,y,south,spouts=true,gap=13,skip=null){
  const signedA=outline.reduce((sum,[x,z],i)=>{const [u,v]=outline[(i+1)%outline.length];return sum+x*v-u*z},0),outw=signedA>0?1:-1;
  for(let i=0;i<outline.length;i++){
   const [x,z]=outline[i],[xx,zz]=outline[(i+1)%outline.length];
@@ -74,11 +94,11 @@ export function terraceRails(outline,y,south,spouts=true){
   const nx=outw*(zz-z)/len,nz=-outw*(xx-x)/len;
   for(let j=0;j<count;j++){
    const t=j/count,u=(j+.5)/count,a=x+(xx-x)*t,b=z+(zz-z)*t,c=x+(xx-x)*u,d=z+(zz-z)*u;
-   if(Math.abs(b-south)<.02&&Math.abs(a-1)<13)continue;
+   if(Math.abs(b-south)<.02&&Math.abs(a-1)<gap||skip&&skip(a,b))continue;
    box(a,y+.62,b,.31,1.24,.32,stone,true);box(a,y+1.255,b,.39,.11,.39,stone);
    add(new THREE.SphereGeometry(.17,8,6),carvedStone,a,y+1.42,b);
    if(spouts){const sp=box(a+nx*.32,y-.3,b+nz*.32,.2,.2,.62,carvedStone);sp.rotation.y=Math.atan2(nx,nz);add(new THREE.SphereGeometry(.15,8,6),carvedStone,a+nx*.66,y-.28,b+nz*.66)}
-   if(Math.abs(d-south)<.02&&Math.abs(c-1)<15)continue;
+   if(Math.abs(d-south)<.02&&Math.abs(c-1)<gap+.8||skip&&skip(c,d))continue;
    const panel=box(c,y+.54,d,len/count,.55,.20,carvedStone,true);panel.rotation.y=yaw;
   }
  }

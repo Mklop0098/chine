@@ -11,6 +11,12 @@ export function surfaceRect(x,z,w,d,y){
  walkSurfaces.push({x,z,w,d,y});
 }
 
+// Mặt đi được dạng đa giác (bậc xoay, nền nghiêng theo bản đồ…).
+export function surfacePoly(points,y){
+ const [x,z,w,d]=bounds(points);
+ walkSurfaces.push({x,z,w,d,y,poly:points});
+}
+
 export function beamBetween(a,b,r,mat,sides=8){
  const axis=b.clone().sub(a);
  const o=add(new THREE.CylinderGeometry(r,r,axis.length(),sides),mat);

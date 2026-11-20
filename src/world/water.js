@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import {add,beamBetween,bounds,box,surfaceRect} from '../builders/primitives.js';
 import {pattern,random,vec} from '../core/utils.js';
 import {data} from '../data.js';
-import {bridges,gardenPebbles,poolDeck,stone,water,waterways} from '../materials/textures.js';
+import {bridges,carvedStone,gardenPebbles,poolDeck,stone,water,waterways} from '../materials/textures.js';
 
 export let river,ripples;
 
@@ -61,4 +61,42 @@ for(const outline of data.bridges){
  }
  bridges.push({outline,axis:[[x,north],[x,south]]});
 }
+riverRails();
+}
+
+// Lan can đá dọc hai bờ Nội Kim Thủy Hà (đoạn giữa hai dãy hành lang), ngắt ở đầu năm cây cầu:
+// trụ vuông đầu tròn, ô chắn chạm hoa, tay vịn trên.
+function riverRails(){
+ const off=5.75,step=2.2,limitX=95;
+ // Khung cầu (nới 0,15 m): lan can chạy sát tới mép cầu rồi dừng.
+ const bridgeBoxes=data.bridges.map(o=>{const [x,z,w,d]=bounds(o);return [x-w/2-.15,z-d/2-.15,x+w/2+.15,z+d/2+.15]});
+ const blocked=([x,z])=>Math.abs(x)>limitX||bridgeBoxes.some(([a,b,c,d])=>x>a&&x<c&&z>b&&z<d);
+ // Lấy mẫu đều theo chiều dài đường sông, dời sang hai bên theo pháp tuyến.
+ const P=river,samples=[];
+ for(let i=1;i<P.length;i++){
+  const [ax,az]=P[i-1],[bx,bz]=P[i],len=Math.hypot(bx-ax,bz-az),n=Math.max(1,Math.round(len/step));
+  for(let k=i===1?0:1;k<=n;k++){const t=k/n;samples.push([ax+(bx-ax)*t,az+(bz-az)*t,(bx-ax)/len,(bz-az)/len])}
+ }
+ const post=([x,z])=>{box(x,.5,z,.26,1,.26,stone,true);add(new THREE.SphereGeometry(.14,8,6),carvedStone,x,1.1,z)};
+ const panel=([x,z],[x2,z2])=>{
+  const len=Math.hypot(x2-x,z2-z);if(len<.35)return;
+  const yaw=-Math.atan2(z2-z,x2-x);
+  const p=box((x+x2)/2,.42,(z+z2)/2,len-.26,.5,.14,carvedStone,true);p.rotation.y=yaw;
+  const r=box((x+x2)/2,.84,(z+z2)/2,len-.2,.12,.2,stone);r.rotation.y=yaw;
+ };
+ // Điểm ranh giới giữa đoạn đi được và khung cầu (chia đôi).
+ const edgeOf=(p,q)=>{let a=p,b=q;for(let k=0;k<20;k++){const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];if(blocked(m))b=m;else a=m}return a};
+ for(const s of [-1,1]){
+  const pts=samples.map(([x,z,dx,dz])=>[x+s*dz*off,z-s*dx*off]);
+  const ok=pts.map(p=>!blocked(p));
+  for(let i=0;i<pts.length;i++){
+   if(ok[i])post(pts[i]);
+   if(i+1>=pts.length)continue;
+   if(ok[i]&&ok[i+1])panel(pts[i],pts[i+1]);
+   else if(ok[i]!==ok[i+1]){
+    const [good,bad]=ok[i]?[pts[i],pts[i+1]]:[pts[i+1],pts[i]];
+    const e=edgeOf(good,bad);post(e);panel(good,e);
+   }
+  }
+ }
 }

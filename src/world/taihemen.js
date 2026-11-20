@@ -2,11 +2,14 @@ import * as THREE from 'three';
 import {hall} from '../builders/hall.js';
 import {studDoor,windowMat} from '../builders/ornaments.js';
 import {add,box,surfaceRect} from '../builders/primitives.js';
+import {grandStair} from '../builders/stairs.js';
 import {baseStone,carvedStone,deep,paintedBeam,paleCourt,red,wallRed} from '../materials/textures.js';
 
 const PLATFORM_Y=1.45;
 const PLATFORM_WIDTH=56.4;
 const PLATFORM_DEPTH=29.6;
+const PLATFORM_CAP_HEIGHT=.15;
+const PLATFORM_CAP_OVERHANG=.03;
 const BAY=6.15;
 const STAIR_WIDTH=4.3;
 const SIDE_STAIR_WIDTH=3.4;
@@ -35,8 +38,10 @@ function stair(x,z,width,run,side,alongX=false){
  const count=Math.ceil(PLATFORM_Y/.18);
  for(let i=0;i<count;i++){
   const y=PLATFORM_Y*(i+1)/count;
-  const offset=side*(run-(i+.5)*run/count);
-  const depth=run/count+.025;
+  // Meet the cap edge without overlapping its coplanar top face.
+  const trim=i===count-1?PLATFORM_CAP_OVERHANG+.0125:0;
+  const offset=side*(run-(i+.5)*run/count+trim/2);
+  const depth=run/count+.025-trim;
   const [cx,cz,w,d]=alongX?[x+offset,z,depth,width]:[x,z+offset,width,depth];
   const step=box(cx,y/2,cz,w,y,d,marble,true);
   step.userData.step=true;
@@ -51,8 +56,10 @@ function stair(x,z,width,run,side,alongX=false){
 
 export function buildTaihemen(x,z,top){
  const y=PLATFORM_Y,w=PLATFORM_WIDTH,d=PLATFORM_DEPTH;
- box(x,y/2,z,w,y,d,marble,true);
- box(x,y-.075,z,w+.06,.15,d+.06,paleCourt);
+ // Stop the marble base below the paving so only the cap draws at floor level.
+ const baseHeight=y-PLATFORM_CAP_HEIGHT+.01;
+ box(x,baseHeight/2,z,w,baseHeight,d,marble,true);
+ box(x,y-PLATFORM_CAP_HEIGHT/2,z,w+2*PLATFORM_CAP_OVERHANG,PLATFORM_CAP_HEIGHT,d+2*PLATFORM_CAP_OVERHANG,paleCourt,true);
  surfaceRect(x,z,w,d,y);
  hall(x,z,9*BAY/.91,27,y,top,{style:'hip-gable',double:true,bays:9,open:true,ornate:true,sign:'太和門'});
  const height=(top-y)*.49;
@@ -92,11 +99,12 @@ export function buildTaihemen(x,z,top){
   const front=z+side*d/2;
   const gaps=[-BAY,0,BAY].map(offset=>x+offset);
   let start=x-w/2;
+  // Ba cầu thang trước / sau cổng: thành bên đặc, lan can trụ đầu tròn (giống cầu thang các cổng bên).
   for(const center of gaps){
-   const end=center-STAIR_WIDTH/2-.16;
+   const end=center-STAIR_WIDTH/2-.7;
    stoneRail((start+end)/2,front,end-start,y);
-   stair(center,front,STAIR_WIDTH,6,side);
-   start=center+STAIR_WIDTH/2+.16;
+   grandStair(center,front,side,STAIR_WIDTH,y,6,'z');
+   start=center+STAIR_WIDTH/2+.7;
   }
   const end=x+w/2;
   stoneRail((start+end)/2,front,end-start,y);

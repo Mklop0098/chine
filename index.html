@@ -37,6 +37,11 @@ details{margin-top:11px;font-size:12px;line-height:1.5}summary{cursor:pointer}a{
 .timeline input[type=range]{display:block;width:100%;margin:8px 0 0}
 .timeline output{display:block;margin-top:6px;font-size:12px;color:#e3d0a7}
 #rooms{margin:7px 0 1px}#roomPanel{display:none}.room-open #roomPanel{display:block}.room-open #labels,.room-open #info{display:none}#backRoom{margin-top:7px}
+/* Ẩn các mục cài đặt không dùng trong game */
+#npcAssembly,#plan,#hero,#walk,#guide,#measure,#info,#rooms,#roomPanel,#settingsMenu details.docs{display:none!important}
+#backHero{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:31;padding:10px 18px;border-radius:9px;border:1px solid #e8c77a;background:#5a2a1ef2;color:#fff1d3;font:15px system-ui;cursor:pointer;box-shadow:0 6px 22px #0007}
+#backHero:hover{background:#7a3a26}
+#backHero[hidden]{display:none}
 </style>
 <div id="labels"></div>
 <button id="settingsToggle" type="button" popovertarget="settingsMenu"><span aria-hidden="true">⚙</span> Cài đặt</button>
@@ -50,7 +55,7 @@ details{margin-top:11px;font-size:12px;line-height:1.5}summary{cursor:pointer}a{
   <label class="wx">Chức vị <select id="royalNpc"></select></label>
   <button id="royalView" type="button">Xem NPC</button>
  </details>
- <div class="row"><button id="all">Toàn cảnh</button><button id="plan">Mặt bằng</button><button id="walk" aria-pressed="false">Đi bộ</button><button id="guide" aria-pressed="false">Đi theo tuyến</button><button id="measure" aria-pressed="false">Đo ngang</button></div>
+ <div class="row"><button id="all">Toàn cảnh</button><button id="plan">Mặt bằng</button><button id="chapter1">Chương I</button><button id="hero" aria-pressed="false">Nhân vật</button><button id="walk" aria-pressed="false">Đi bộ</button><button id="guide" aria-pressed="false">Đi theo tuyến</button><button id="measure" aria-pressed="false">Đo ngang</button></div>
  <fieldset class="timeline">
   <legend>Thời gian và thời tiết</legend>
   <label class="wx">Ngày trong game <input id="gameDate" type="date" min="0100-01-01" max="9999-12-31"></label>
@@ -64,13 +69,14 @@ details{margin-top:11px;font-size:12px;line-height:1.5}summary{cursor:pointer}a{
  </fieldset>
  <p id="info"></p><select id="rooms" aria-label="Xem nội thất"><option value="">Xem nội thất…</option></select>
  <div id="roomPanel"><p id="roomInfo"></p><a id="roomSource">Tư liệu của bảo tàng</a><br><button id="backRoom">Về Cố Cung</button></div>
- <details><summary>Kích thước và tài liệu</summary>
+ <details class="docs"><summary>Kích thước và tài liệu</summary>
  <p>Vòng thành 753 m đông–tây và 961 m bắc–nam. Thân tường cao 9,90 m, dày 8,62 m ở chân và 6,66 m ở đỉnh. Hào rộng 52 m. Nền đài Ngọ Môn cao 12 m. Điện Thái Hòa dùng cao độ đỉnh mái 35,05 m và nền 8,13 m.</p>
  <p>Dữ liệu mặt bằng nhúng trong file theo giấy phép ODbL. Đường bao công trình lấy từ OpenStreetMap và quy đổi sang mét, xoay theo trục cung điện. Tuyến đi và đường bao theo OpenStreetMap. Các cụm có dữ liệu phần mái dùng đường bao và cao độ từ bản đồ. Chi tiết thiếu tư liệu và ba gian nội thất cắt mở được tái dựng minh họa. Mô hình dùng để tham quan và đo tham khảo.</p>
  <p><a href="https://intl.dpm.org.cn/visit.html">Sơ đồ tham quan</a> · <a href="https://intl.dpm.org.cn/explore/build_maps.html">Bản đồ kiến trúc</a> · <a href="https://www.dpm.org.cn/explore/building/236441.html">Hồ sơ tường thành</a> · <a href="https://www.dpm.org.cn/explore/building/236465.html">Điện Thái Hòa</a> · <a href="https://www.dpm.org.cn/explore/building/236454.html">Ngọ Môn</a> · <a href="https://www.dpm.org.cn/architectural_art/246281.html">Năm cầu đá</a> · <a href="https://www.dpm.org.cn/lemmas/244055.html">Lối lát cuội Ngự Hoa Viên</a> · <a href="https://www.dpm.org.cn/explode/others/256302.html">Bố cục Đông và Tây lục cung</a> · <a href="https://www.dpm.org.cn/explore/building/236477.html">Cửu Long Bích</a></p></details>
 </aside>
 <div id="directions" aria-label="Điều khiển đi bộ"><button data-code="KeyW" aria-label="Tiến">↑</button><button data-code="KeyA" aria-label="Trái">←</button><button data-code="KeyS" aria-label="Lùi">↓</button><button data-code="KeyD" aria-label="Phải">→</button></div>
-<div id="status" role="status">Kéo để xoay · Cuộn để thu phóng</div>
+<button id="backHero" type="button" hidden>↩ Quay lại nhân vật <small style="opacity:.7">(B)</small></button>
+<div id="status" role="status">Kéo để di chuyển · Kéo chuột phải để xoay · Cuộn để thu phóng</div>
 <a id="credit" href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors · ODbL</a>
 <script type="module" src="/src/main.js"></script>
 

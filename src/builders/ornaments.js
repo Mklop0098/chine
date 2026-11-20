@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import {add,box} from './primitives.js';
 import {material,pattern} from '../core/utils.js';
+import {bumpFrom} from '../materials/textures.js';
 
 export let eaveTex,eaveMat,soffitTex,soffitMat,bracketTex,bracketMat,dgBlue,dgGreen,dgGold,beastBody,beastHead,studDoorTex,studDoor,windowTex,windowMat;
 
@@ -88,7 +89,7 @@ studDoorTex=pattern(128,128,c=>{
  }
  c.fillStyle='#d4a849';for(const x of [56,72]){c.beginPath();c.arc(x,66,5,0,6.283);c.fill()}
 });
-studDoor=new THREE.MeshStandardMaterial({map:studDoorTex,roughness:.6});
+studDoor=new THREE.MeshStandardMaterial({map:studDoorTex,bumpMap:bumpFrom(studDoorTex,'grayscale(1) contrast(1.6)'),bumpScale:3,roughness:.55,metalness:.15});
 windowTex=pattern(96,64,c=>{
  c.fillStyle='#5a1f18';c.fillRect(0,0,96,64);
  c.fillStyle='#e9dcc0';c.fillRect(6,6,84,52);
@@ -97,5 +98,5 @@ windowTex=pattern(96,64,c=>{
  for(let y=6;y<=58;y+=10.4){c.beginPath();c.moveTo(6,y);c.lineTo(90,y);c.stroke()}
  c.strokeStyle='#c99a3e';c.lineWidth=1.5;c.strokeRect(6,6,84,52);
 });
-windowMat=new THREE.MeshStandardMaterial({map:windowTex,emissiveMap:windowTex,emissive:'#ffad60',emissiveIntensity:0,roughness:.75});
+windowMat=new THREE.MeshStandardMaterial({map:windowTex,bumpMap:bumpFrom(windowTex,'grayscale(1) invert(1) contrast(1.5)'),bumpScale:1.5,emissiveMap:windowTex,emissive:'#ffad60',emissiveIntensity:0,roughness:.75});
 }

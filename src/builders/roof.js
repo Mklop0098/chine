@@ -1,14 +1,47 @@
 // Mái cong Trung Hoa: lũ điện (hipped), hiết sơn (hip-gable), mái hồi, chóp; thú chầu, diềm, mặt dưới mái.
 import * as THREE from 'three';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {chiwen,eaveMat,soffitMat} from './ornaments.js';
 import {add,beamBetween} from './primitives.js';
 import {vec} from '../core/utils.js';
 import {baseStone,gold,paintedBeam,red,roofGold} from '../materials/textures.js';
 
+// Thú chầu trên gờ mái (tẩu thú): thú ngồi chồm hướng ra mép mái, có bờm, sừng, đuôi; con đầu là tiên nhân cưỡi phượng.
+const T=THREE,mk=(g,x=0,y=0,z=0,sx=1,sy=1,sz=1,rx=0)=>{g.scale(sx,sy,sz);if(rx)g.rotateX(rx);return g.translate(x,y,z)};
+let _beast=null,_rider=null;
+function beastGeo(){
+ if(_beast)return _beast;
+ const parts=[
+  mk(new T.BoxGeometry(.2,.05,.32),0,.025,0),
+  mk(new T.SphereGeometry(.13,8,6),0,.17,-.03,.72,.85,1.1),
+  mk(new T.CylinderGeometry(.035,.04,.17,6),.065,.12,.09),mk(new T.CylinderGeometry(.035,.04,.17,6),-.065,.12,.09),
+  mk(new T.SphereGeometry(.09,8,6),0,.33,.09,1,.95,1.05),
+  mk(new T.BoxGeometry(.075,.055,.09),0,.3,.17),
+  mk(new T.ConeGeometry(.028,.11,6),0,.43,.06,1,1,1,-.5),
+  mk(new T.ConeGeometry(.05,.14,6),0,.3,-.03,1.3,1,.5,-.9),
+  mk(new T.ConeGeometry(.035,.18,6),0,.25,-.19,1,1,1,-2.3)
+ ];
+ return _beast=mergeGeometries(parts.map(g=>g.index?g.toNonIndexed():g));
+}
+function riderGeo(){
+ if(_rider)return _rider;
+ const parts=[
+  mk(new T.BoxGeometry(.2,.05,.32),0,.025,0),
+  mk(new T.SphereGeometry(.12,8,6),0,.15,0,.8,.7,1.3),
+  mk(new T.ConeGeometry(.05,.22,6),0,.17,-.2,1.6,1,.5,-1.9),
+  mk(new T.CylinderGeometry(.015,.02,.12,6),0,.24,.14),mk(new T.SphereGeometry(.035,8,6),0,.31,.17),
+  mk(new T.CylinderGeometry(.04,.07,.2,8),0,.32,.0),mk(new T.SphereGeometry(.05,8,6),0,.46,.0),
+  mk(new T.CylinderGeometry(.03,.05,.05,8),0,.52,0),
+  mk(new T.BoxGeometry(.3,.02,.1),0,.2,-.02)
+ ];
+ return _rider=mergeGeometries(parts.map(g=>g.index?g.toNonIndexed():g));
+}
+
 export function roof(x,z,w,d,eave,rise,mat=roofGold,detail=false,options={}){
- const {style='hipped',inner=null,animals=0}=options;
+ const {style='hipped',inner=null,animals=0,keepAxis=false}=options;
  let {dx=1,dz=0}=options;
- if(d>w){
+ // keepAxis: giữ nóc mái theo (dx, dz) kể cả khi nhà sâu hơn dài (đoạn nhà nối ngắn).
+ if(d>w&&!keepAxis){
   [w,d]=[d,w];
   [dx,dz]=[-dz,dx];
  }
@@ -134,10 +167,8 @@ export function roof(x,z,w,d,eave,rise,mat=roofGold,detail=false,options={}){
    for(let i=0;i<animals;i++){
     const t=(i+1)/(animals+1)*end;
     const foot=at(t),forward=at(Math.max(0,t-.016)).sub(foot).normalize();
-    const body=add(new THREE.SphereGeometry(.16,7,5),trim,foot.x,foot.y+.23,foot.z);
-    body.scale.set(.68,.65,1.22);
-    body.rotation.y=Math.atan2(forward.x,forward.z);
-    add(new THREE.IcosahedronGeometry(.09,0),trim,foot.x+forward.x*.12,foot.y+.34,foot.z+forward.z*.12);
+    const o=add(i===0&&animals>=3?riderGeo():beastGeo(),trim,foot.x,foot.y+.02,foot.z);
+    o.rotation.y=Math.atan2(forward.x,forward.z);
    }
   }
  }

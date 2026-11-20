@@ -4,15 +4,16 @@ import {area,bounds,box,lineDistance,polygon} from '../builders/primitives.js';
 import {roof} from '../builders/roof.js';
 import {material,pattern} from '../core/utils.js';
 import {data} from '../data.js';
-import {roofGold,stone,water} from '../materials/textures.js';
+import {lawn,roofGold,stone,water} from '../materials/textures.js';
 import {places} from './landmarks.js';
 import {edgeBox} from './mappedBuildings.js';
 import {river} from './water.js';
+import {buildPondRailings,PAVILION_PONDS,PAVILION_CENTER,EAST_PAVILION_CENTER} from './waterPavilion.js';
 
 export let plantingMat,plantingEdge,mappedWater,dragonWallData;
 
 export function buildLandscape(){
-plantingMat=material('#778258');
+plantingMat=lawn;
 plantingEdge=material('#8e8c70');
 mappedWater=[];
 for(const [kind,outline] of data.landscape){
@@ -29,6 +30,16 @@ for(const [kind,outline] of data.landscape){
    if(Math.hypot(a[0]-b[0],a[1]-b[1])<24)edgeBox(a,b,0,.071,.13,.11,plantingEdge);
   }
  }
+}
+// Hồ mới đặt cao hơn thảm cỏ để mặt nước phủ kín phần cây cỏ cũ.
+for(const [index,pond] of PAVILION_PONDS.entries()){
+polygon(pond,.085,0,water);
+mappedWater.push(pond.map(p=>[...p]));
+for(let i=0;i<pond.length;i++){
+ const a=pond[i],b=pond[(i+1)%pond.length];
+ edgeBox(a,b,0,.095,.19,.22,stone);
+}
+buildPondRailings(pond,index===0?PAVILION_CENTER:EAST_PAVILION_CENTER);
 }
 dragonWallData=data.scenicFeatures['41661995'];
 if(dragonWallData?.length){

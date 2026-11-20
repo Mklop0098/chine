@@ -9,9 +9,10 @@ export const commonRanks=[
 ];
 
 export const royalRank={count:9,columns:9,x:0,z:579,spacing:1.6};
+// Đoàn tùy tùng sau hàng hoàng tộc: dựng bằng mô hình NPC chi tiết (đại cung nữ, thái giám).
 export const escortRanks=[
- {count:24,columns:8,x:-10,z:591,color:'#584453'},
- {count:6,columns:3,x:10,z:591,color:'#3b4051'},
+ {count:24,columns:8,x:-10,z:591,type:'senior',role:cungNu},
+ {count:6,columns:3,x:10,z:591,type:'eunuch',role:thaiGiam},
 ];
 
 export function rankPositions({count,columns,x,z,spacing=1.35}){

@@ -1,15 +1,21 @@
 // Hơn 900 công trình dựng từ footprint OSM: tường, cửa, mái theo nhiều kiểu, bậc đá.
 import * as THREE from 'three';
 import {bandStrip,bracketMat,studDoor,windowMat} from '../builders/ornaments.js';
-import {add,area,beamBetween,bounds,box,pointInPolygon,polygon} from '../builders/primitives.js';
+import {add,area,beamBetween,bounds,box,pointInPolygon,polygon,surfacePoly} from '../builders/primitives.js';
 import {roof} from '../builders/roof.js';
+import {grandStair} from '../builders/stairs.js';
+import {terraceRails} from '../builders/hall.js';
+import {buildWaterPavilion} from './waterPavilion.js';
+import {buildYangxin} from './yangxin.js';
+import {buildCining} from './cining.js';
 import {material,pattern,random,vec} from '../core/utils.js';
 import {data} from '../data.js';
-import {baseStone,carvedStone,doorPanels,glaze,grayTiles,paintedBeam,red,roofGold,stone,tiles} from '../materials/textures.js';
+import {baseStone,carvedStone,doorPanels,glaze,grayTiles,paintedBeam,paleCourt,red,roofGold,stone,tileBump,tiles} from '../materials/textures.js';
 import {distSegment} from '../player/collision.js';
-import {places} from './landmarks.js';
+import {buildQianqingmen,places} from './landmarks.js';
 import {westZ} from './rampart.js';
-import {addFacadeLantern} from './lanterns.js';
+import {cutOut,gapsFor} from './openings.js';
+import {addFacadeLantern,buildStoneLantern} from './lanterns.js';
 
 export let plasterTexture,facadePlaster,wallPlaster,grayTile,greenTile,roofMaterials,decoratedRoofEdge,courtyardBase,detailedBuildings,mappedRoofParts;
 
@@ -31,6 +37,43 @@ export function borderDistance(x,z,p){
  let min=Infinity;
  for(let i=0;i<p.length;i++)min=Math.min(min,distSegment(x,z,[p[i],p[(i+1)%p.length]]));
  return min;
+}
+
+// Mái Hiết Sơn gọn gàng cho mọi mặt bằng: nhà chữ nhật một mái; nhà gãy khúc (chữ L, U…)
+// được chia thành các khối chữ nhật lớn nhất trên lưới 1 m, mỗi khối một mái riêng.
+export function hipGableRoofs(points,y,rise,mat,direction=-1){
+ const {dx,dz,u,v,w,d}=dominantFrame(points,direction);
+ const toW=(U,V)=>[U*dx-V*dz,U*dz+V*dx];
+ const put=(U,V,rw,rd)=>{
+  const r=Math.min(rise,Math.max(.6,Math.min(rw,rd)*.42));
+  const [x,z]=toW(U,V);
+  roof(x,z,rw+.6,rd+.6,y,r,mat,rw*rd>420,{style:'hip-gable',dx,dz});
+ };
+ if(area(points)/(w*d)>.9){put(u,v,w,d);return}
+ const S=1,W=Math.max(1,Math.round(w/S)),H=Math.max(1,Math.round(d/S)),sw=w/W,sd=d/H;
+ const cell=new Uint8Array(W*H);let left=0;
+ for(let j=0;j<H;j++)for(let i=0;i<W;i++){
+  const [x,z]=toW(u-w/2+(i+.5)*sw,v-d/2+(j+.5)*sd);
+  if(pointInPolygon(x,z,points)){cell[j*W+i]=1;left++}
+ }
+ const total=left;
+ for(let n=0;n<8&&left>total*.06;n++){
+  // Hình chữ nhật lớn nhất (thuật toán biểu đồ cột theo từng hàng).
+  const hgt=new Int32Array(W);let best={a:0};
+  for(let j=0;j<H;j++){
+   for(let i=0;i<W;i++)hgt[i]=cell[j*W+i]?hgt[i]+1:0;
+   const st=[];
+   for(let i=0;i<=W;i++){
+    const h=i<W?hgt[i]:0;let start=i;
+    while(st.length&&st[st.length-1][1]>=h){const [s0,h0]=st.pop();const a=h0*(i-s0);if(a>best.a)best={a,i0:s0,i1:i,j1:j+1,j0:j+1-h0};start=s0}
+    st.push([start,h]);
+   }
+  }
+  if(best.a<4)break;
+  for(let j=best.j0;j<best.j1;j++)for(let i=best.i0;i<best.i1;i++){if(cell[j*W+i]){cell[j*W+i]=0;left--}}
+  const rw=(best.i1-best.i0)*sw,rd=(best.j1-best.j0)*sd;
+  put(u-w/2+(best.i0*sw+rw/2),v-d/2+(best.j0*sd+rd/2),rw,rd);
+ }
 }
 
 export function footprintRoof(points,y,rise,style,mat,direction=-1,greenBorder=false,{fallback=false}={}){
@@ -145,13 +188,15 @@ export function stoneStairs(outline,y0,rise,direction){
  for(let i=0;i<N;i++){
   const U=u+w/2-(i+.5)*sw,h=rise*(i+1)/N,[x,z]=toW(U,v);
   const b=box(x,y0+h/2,z,sw+.02,h,d,stone,true);b.rotation.y=yaw;b.userData.step=true;
+  // Mặt bậc đi được (bậc xoay theo hướng nhà).
+  surfacePoly([toW(U-sw/2-.02,v-d/2),toW(U+sw/2+.02,v-d/2),toW(U+sw/2+.02,v+d/2),toW(U-sw/2-.02,v+d/2)],y0+h);
   const [nx,nz]=toW(U+sw/2-.03,v);const e=box(nx,y0+h-.03,nz,.06,.06,inner,baseStone);e.rotation.y=yaw;
  }
  const L=Math.hypot(w,rise),tilt=Math.atan2(rise,w);
  for(const s of [-1,1]){
   const [x,z]=toW(u,v+s*(d/2-cw/2));
   const ch=box(x,y0+rise/2+.12,z,L,.42,cw,stone,true);ch.rotation.order='YZX';ch.rotation.y=yaw;ch.rotation.z=-tilt;
-  if(rise>1.2){
+   if(rise>=1.15){
    const m=Math.max(2,Math.ceil(w/1.8));
    for(let k=0;k<=m;k++){const t=k/m,[px,pz]=toW(u-w/2+t*w,v+s*(d/2-cw/2));const py=y0+rise*(1-t)+.33;box(px,py+.45,pz,.22,.9,.22,stone);add(new THREE.SphereGeometry(.13,8,6),carvedStone,px,py+.98,pz)}
    const [ax,az]=toW(u-w/2,v+s*(d/2-cw/2)),[cx,cz]=toW(u+w/2,v+s*(d/2-cw/2));
@@ -231,12 +276,130 @@ export function detailFacade(p,y,height,ornate=false,upper=false){
 }
 
 export function renderMappedBuilding(p,mappedHeight,isGate,id,parts,color,shape){
+ if(id==='685673150'){
+  buildWaterPavilion(grayTile);
+  detailedBuildings++;
+  return;
+ }
+ if(id==='685600291'){
+  const [x,z,w]=bounds(p);
+  buildQianqingmen(x,z,w,3.2,0,5.4,{singleDoor:true,singleDoorWidth:.46,sign:'',columnBays:1,stairRails:false});
+  return;
+ }
+ if(id==='685600272'){
+  const deck=parts.find(part=>part[7]==='stone'&&part[4]==='flat');
+  const [x,z,w,d]=bounds(deck[0]),height=1;
+  const outline=[[x-w/2,z-d/2],[x+w/2,z-d/2],[x+w/2,z+d/2],[x-w/2,z+d/2]];
+  polygon(outline,0,height,baseStone,true);
+  polygon(outline,height,.025,paleCourt);
+  surfacePoly(outline,height);
+  const stairs=[
+   {c:x,edge:z+d/2,out:1,width:2.5,axis:'z'},
+   {c:z,edge:x-w/2,out:-1,width:2,axis:'x'},
+   {c:z,edge:x+w/2,out:1,width:2,axis:'x'},
+  ];
+  for(const stair of stairs)grandStair(stair.c,stair.edge,stair.out,stair.width,height,3.3,stair.axis);
+  const opening=(px,pz)=>pz<z-d/2+.3||stairs.some(stair=>stair.axis==='x'
+   ?Math.abs(px-stair.edge)<.5&&Math.abs(pz-stair.c)<stair.width/2+1
+   :Math.abs(pz-stair.edge)<.5&&Math.abs(px-stair.c)<stair.width/2+1);
+  terraceRails(outline,height,z+d/2,false,0,opening);
+  return;
+ }
+ if(id==='685600288'){
+  const [x,z,w,d]=bounds(p),base=1;
+  polygon(p,0,base,baseStone,true);
+  polygon(p,base,.025,paleCourt);
+  surfacePoly(p,base);
+  const body=[[x-w*.415,z-d*.34],[x+w*.415,z-d*.34],[x+w*.415,z+d*.34],[x-w*.415,z+d*.34]];
+  polygon(body,base,4.8,facadePlaster,true);
+  detailFacade(body,base,4.8,true);
+  roof(x,z,w+1.2,d+1.2,5.8,2.3,roofGold,true,{style:'hip-gable',inner:[w*.64,d*.6]});
+  box(x,8.95,z,w*.64,1.7,d*.6,red,true);
+  roof(x,z,w*.8,d*.78,9.8,2.2,roofGold,true,{style:'hip-gable',inner:[w*.43,d*.4]});
+  box(x,12.8,z,w*.43,1.6,d*.4,red,true);
+  roof(x,z,w*.58,d*.56,13.6,2.2,roofGold,true,{style:'hip-gable'});
+  detailedBuildings++;
+  return;
+ }
+ if(id==='639060881'){
+  const body=parts.filter(part=>part[7]==='wood'&&part[4]==='flat')
+   .sort((a,b)=>area(b[0])-area(a[0]))[0];
+  const [x,z,w,d]=bounds(body?body[0]:p);
+  buildQianqingmen(x,z,w+.8,d,1,12,{singleDoor:true,sign:'坤寧門'});
+  detailedBuildings++;
+  return;
+ }
+ if(id==='638981206'||id==='638981228')return;
+ if(id==='228767332')return;
+ if(['638981272','638981273','639012180','639012191'].includes(id)){
+  // Hai nhà bên hông Càn Thanh có nền thấp riêng và một mái liền hoàn chỉnh.
+  const body=parts.find(part=>part[7]==='wood'&&part[4]==='flat');
+  const base=.38,eave=7;
+  polygon(p,0,base,baseStone,true);
+  surfacePoly(p,base);
+  if(body){
+   const outline=body[0];
+   polygon(outline,base,eave-base,facadePlaster,true);
+   detailFacade(outline,base,eave-base,true);
+   const [x,z,w,d]=bounds(outline);
+   roof(x,z,w+.8,d+.8,eave,3.8,roofGold,true,{style:'hip-gable'});
+  }
+  frontStep(p,base);
+  detailedBuildings++;
+  return;
+ }
+ if(id==='638981261'){
+  // Sân được dựng cùng nền Hậu tam cung trong innerTerrace.js.
+  return;
+ }
+ if(id==='638807694'){
+  polygon(p,0,.12,stone);
+  surfacePoly(p,.12);
+  return;
+ }
+ if(id==='639048827'){
+  // Dãy chữ L dùng hai mái hồi thẳng, bỏ các mảnh mái OSM chồng tầng ở góc.
+  const body=parts.find(part=>part[7]==='wood'&&part[4]==='flat');
+  const base=1,eave=6;
+  polygon(p,0,base,baseStone,true);
+  surfacePoly(p,base);
+  if(body){
+   polygon(body[0],base,eave-base,facadePlaster,true);
+   detailFacade(body[0],base,eave-base,true);
+  }
+  roof(-52.8,-136.1,26.6,10,6,3,roofGold,true,{style:'gable-hard',dx:0,dz:1,keepAxis:true});
+  roof(-33.2,-127.7,29.2,10.7,6,3,roofGold,true,{style:'gable-hard',keepAxis:true});
+  detailedBuildings++;
+  return;
+ }
+ // Cổng nhỏ cạnh Càn Thanh Môn được dựng cùng tường chữ L trong walls.js.
+ if(id==='42509106')return;
+ if(id==='638807769'||id==='638807768'){
+  const [x,z]=bounds(p);
+  buildStoneLantern(x,z);
+  return;
+ }
+ const stairHall=id==='638807748'||id==='638807749';
+ if(stairHall){
+  const east=id==='638807748';
+  // Thay dốc phía sân bằng cầu thang. Mép trên ăn vào nền đá hơi xiên.
+  const platform=parts.find(part=>part[7]==='stone'&&part[4]==='flat');
+  if(platform){
+   const [outline,,height]=platform;
+   p=outline;
+   parts=parts.filter(part=>!(part[7]==='stone'&&part[4]==='skillion'&&(east?bounds(part[0])[0]<100:bounds(part[0])[0]>-100)));
+   surfacePoly(outline,height);
+   grandStair(east?-85.6:-85.4,east?98.53:-99.49,east?-1:1,17.5,height,4.6,'x');
+  }
+ }
  const [, ,w,d]=bounds(p),small=Math.min(w,d);
  const isComplex=parts.length>1;
- const base=.38;
+ const groundCorridorPavilion=['639048947','639048962','639048965','639048970'].includes(id);
+ const base=groundCorridorPavilion?0:.38;
  const mat=roofMaterials[color]||roofGold;
- polygon(p,0,base,courtyardBase,true);
- frontStep(p,base);
+ const bodyTop=mappedHeight>3.1&&mappedHeight<30?mappedHeight:Math.min(12.2,3.65+small*.36);
+ if(base>0)for(const piece of cutOut(p,'building',bodyTop))polygon(piece,0,base,courtyardBase,true);
+ if(!groundCorridorPavilion&&!stairHall&&!gapsFor(p).length)frontStep(p,base);
  if(isComplex){
   for(const [outline,minY,top,rise,style,direction,partColor,construction] of parts){
    if(construction==='stone'&&style==='skillion'&&minY<.5&&rise>.3){stoneStairs(outline,minY,rise,direction);continue}
@@ -244,17 +407,30 @@ export function renderMappedBuilding(p,mappedHeight,isGate,id,parts,color,shape)
    const wallBase=Math.max(minY,base);
    const finish=construction==='stone'||construction==='concrete'?baseStone:facadePlaster;
    if(wallTop>wallBase+.055){
-    polygon(outline,wallBase,wallTop-wallBase,finish);
-    if(finish===facadePlaster&&wallTop-wallBase>1.2)detailFacade(outline,wallBase,wallTop-wallBase,area(p)>260,minY>=1.5);
+    const pieces=minY<1?cutOut(outline,'building',wallTop):[outline];
+    for(const piece of pieces){
+     polygon(piece,wallBase,wallTop-wallBase,finish);
+     if(finish===facadePlaster&&wallTop-wallBase>1.2)detailFacade(piece,wallBase,wallTop-wallBase,area(p)>260,minY>=1.5);
+    }
+    // Xà / tường phía trên lối đi xuyên qua nhà.
+    if(minY<1&&wallTop-wallBase>3)for(const g of gapsFor(outline))polygon(g,wallBase+2.75,wallTop-wallBase-2.75,finish);
    }
-   if(rise>.09){footprintRoof(outline,wallTop,rise,style,id==="40478704"?grayTile:roofMaterials[partColor]||mat,direction,id==="40478704");mappedRoofParts++}
+   if(rise>.09){
+    const pm=id==="40478704"?grayTile:roofMaterials[partColor]||mat;
+    if((style==='hipped'||style==='gabled')&&id!=="40478704")hipGableRoofs(outline,wallTop,rise,pm,direction);
+    else footprintRoof(outline,wallTop,rise,style,pm,direction,id==="40478704");
+    mappedRoofParts++}
    else if(style==='flat'&&minY>1&&wallTop-wallBase<.7)polygon(outline,wallTop,.065,finish);
   }
  }else{
-  const height=mappedHeight>3.1&&mappedHeight<30?mappedHeight:Math.min(12.2,3.65+small*.36);
-  const rise=Math.min(height*.43,small*.37),eave=height-rise;
-  polygon(p,base,Math.max(1,eave-base),facadePlaster);
-  detailFacade(p,base,Math.max(1,eave-base),area(p)>170||isGate);
+  const wings=WING_ROOFS[id];
+  const height=wings?wings.height:mappedHeight>3.1&&mappedHeight<30?mappedHeight:Math.min(12.2,3.65+small*.36);
+  const rise=wings?0:Math.min(height*.43,small*.37),eave=height-rise;
+  for(const piece of cutOut(p,'building',eave)){
+   polygon(piece,base,Math.max(1,eave-base),facadePlaster);
+   detailFacade(piece,base,Math.max(1,eave-base),area(p)>170||isGate);
+  }
+  if(eave-base>3)for(const g of gapsFor(p))polygon(g,base+2.75,eave-base-2.75,facadePlaster);
   if(id==='40593735'||id==='40606461'){
    const {dx,dz,u,v,w,d}=dominantFrame(p);
    const x=u*dx-v*dz,z=u*dz+v*dx;
@@ -266,10 +442,21 @@ export function renderMappedBuilding(p,mappedHeight,isGate,id,parts,color,shape)
     neck.rotation.y=-Math.atan2(dz,dx);
     roof(x,z,w*.79,d*.76,upperEave,rise*.47,mat,true,{dx,dz,style});
    }else roof(x,z,w,d,eave,rise,mat,true,{dx,dz,style});
-  }else footprintRoof(p,eave,rise,shape,mat,-1,id==="40478704",{fallback:true});
+  }else if(wings){
+   // Nhà hình chữ U: mỗi dãy một mái Hiết Sơn riêng thay cho mái tự sinh theo đa giác lõm.
+   for(const [x,z,w,d,r] of wings.parts)roof(x,z,w+.8,d+.8,eave,r,mat,true,{style:'hip-gable'});
+  }else if(shape!=='pyramidal'&&id!=="40478704")hipGableRoofs(p,eave,rise,mat);
+  else footprintRoof(p,eave,rise,shape,mat,-1,id==="40478704",{fallback:true});
  }
  detailedBuildings++;
 }
+
+// Nhà mặt bằng chữ U quanh sân tuyển tú nữ (Chương I): chia thành ba dãy, mỗi dãy một mái.
+// parts: [tâm x, tâm z, rộng, sâu, độ cao mái]
+const WING_ROOFS={
+ '40586549':{height:5.4,parts:[[-300.3,297,46.2,12,3.6],[-318.6,312.3,9.6,18.6,3.2],[-282.6,313.5,10.6,20.4,3.3]]},
+};
+export const REMOVED_BUILDINGS=new Set(['40542452','42424174']);
 
 export function buildMappedBuildings(){
 plasterTexture=pattern(192,192,c=>{
@@ -282,8 +469,8 @@ plasterTexture=pattern(192,192,c=>{
 });
 facadePlaster=new THREE.MeshStandardMaterial({map:plasterTexture,color:'#c27460',roughness:.91});
 wallPlaster=new THREE.MeshStandardMaterial({map:plasterTexture,color:'#d38972',roughness:.94});
-grayTile=new THREE.MeshStandardMaterial({map:grayTiles,color:'#a3a8a4',roughness:.78,side:THREE.DoubleSide});
-greenTile=new THREE.MeshStandardMaterial({map:tiles,color:'#689483',roughness:.72,side:THREE.DoubleSide});
+grayTile=new THREE.MeshStandardMaterial({map:grayTiles,bumpMap:tileBump,bumpScale:3,color:'#a3a8a4',roughness:.78,side:THREE.DoubleSide});
+greenTile=new THREE.MeshStandardMaterial({map:tiles,bumpMap:tileBump,bumpScale:3,color:'#689483',roughness:.72,side:THREE.DoubleSide});
 roofMaterials=[roofGold,grayTile,greenTile];
 decoratedRoofEdge=material('#a87539');
 courtyardBase=material('#a49b8a');
@@ -291,12 +478,16 @@ detailedBuildings=0;
 mappedRoofParts=0;
 for(const entry of data.buildings){
  const [p]=entry,[x,z,w]=bounds(p);
- if(Math.abs(x-29.9)<4&&Math.abs(z+420.8)<4)continue;
  if(Math.abs(x)<4&&w>125&&((z>125&&z<155)||(z> -68&&z< -48)))continue;
  if((Math.abs(x)>343&&Math.abs(z-westZ)<48&&x<0)||(Math.abs(x)<100&&z>444)||(Math.abs(x)<55&&z< -448))continue;
+ // Gian nhà chắn trước sân chữ U (khu tuyển chọn tú nữ, Chương I) được bỏ để mở sân.
+ if(REMOVED_BUILDINGS.has(entry[3]))continue;
  renderMappedBuilding(...entry);
 }
-for(const [name,x,z,span] of data.districtPlaces){
+ buildYangxin();
+ buildCining();
+ buildWaterPavilion(grayTile,{east:true});
+ for(const [name,x,z,span] of data.districtPlaces){
  places.push({name,x,z,y:10,d:Math.max(18,span*.61),detail:true,note:'Mặt bằng đối chiếu theo bản đồ kiến trúc và OpenStreetMap. Chi tiết mặt đứng và mái thiếu tư liệu được tái dựng.'});
 }
 }

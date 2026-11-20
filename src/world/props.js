@@ -10,6 +10,7 @@ import {places} from './landmarks.js';
 import {terraceHeight} from './taihe.js';
 import {flushClumps,inBuilding} from './trees.js';
 import {river} from './water.js';
+import {INNER_TERRACE_HEIGHT,INNER_TERRACE_OUTLINE} from './innerTerrace.js';
 
 export let giltMat,siteBox;
 
@@ -105,14 +106,19 @@ export function buildProps(){
  pathTex.anisotropy=8;
  const pathMat=weather(new THREE.MeshStandardMaterial({map:pathTex,color:'#ece6d8',roughness:.9}),{scale:.05,amount:.12,fine:.05,fineScale:.7});
  const curbMat=weather(material('#9a9486'),{scale:.2,amount:.08});
- const ok=z=>Math.abs(z)<468&&!inBuilding(1,z,1.8)&&!(z>-66&&z<154)&&lineDistance(1,z,river)>8;
+ const pathX=z=>z< -130?0:1;
+ const ok=z=>Math.abs(z)<468&&!inBuilding(pathX(z),z,1.8)&&!(z>-66&&z<154)&&lineDistance(pathX(z),z,river)>8;
  let start=null;
  for(let z=-468;z<=468.5;z+=.5){
   const good=z<468&&ok(z);
   if(good&&start===null)start=z;
   if(!good&&start!==null){
    const len=z-start;
-   if(len>4){const cz=start+len/2;slab(1,cz,6.2,len,pathMat,.052);for(const s of [-1,1])slab(1+s*3.35,cz,.5,len,curbMat,.05)}
+   if(len>4){
+    const cz=start+len/2,cx=pathX(cz);
+    slab(cx,cz,6.2,len,pathMat,.052);
+    for(const s of [-1,1])slab(cx+s*3.35,cz,.5,len,curbMat,.05);
+   }
    start=null;
   }
  }
@@ -126,7 +132,10 @@ siteBox=id=>bounds(data.sites[id][1]);
   for(const offset of [22,28])ding(tx+s*offset,tz+td/2+2,0);
  }
  const [qx,qz,qw,qd]=siteBox('638807674');
- for(const s of [-1,1]){lion(qx+s*11.5,qz+qd/2+3,1,s>0?1:-1,.95);vat(qx+s*(qw/2+5),qz+4,0,true)}
+ for(const s of [-1,1]){
+  lion(qx+s*11.5,qz+qd/2+3,1,s>0?1:-1,.95);
+  if(s<0)vat(qx+s*(qw/2+5),qz+4,0,true);
+ }
  const T=terraceHeight;
  for(const s of [-1,1]){
   for(const z of [76,96])vat(1+s*40,z,T,true);
@@ -137,9 +146,9 @@ siteBox=id=>bounds(data.sites[id][1]);
  sundial(1+31,111.5,T);jialiang(1-30,111.5,T);
  const [gx,gz,gw,gd]=siteBox('638981317');
  for(const s of [-1,1]){
-  const x=gx+s*(gw/2+3.5),z=gz+gd/2-2,p=data.sites['638981317'][1];
-  vat(x,z,pointInPolygon(x,z,p)?1.2:0,true);
-  ding(gx+s*12,gz+gd/2+4,pointInPolygon(gx+s*12,gz+gd/2+4,p)?1.2:0);
+  const x=gx+s*(gw/2+3.5),z=gz+gd/2-2;
+  vat(x,z,pointInPolygon(x,z,INNER_TERRACE_OUTLINE)?INNER_TERRACE_HEIGHT:0,true);
+  ding(gx+s*12,gz+gd/2+4,INNER_TERRACE_HEIGHT);
  }
  for(const [name,x,z,span] of data.districtPlaces){
   if(!name.endsWith('Cung'))continue;

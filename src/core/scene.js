@@ -4,11 +4,25 @@ import {ui} from './dom.js';
 
 export let scene,renderer,camera,sun,hemi;
 
+// Độ phân giải thích ứng: hạ pixel ratio khi khung hình chậm, nâng lại khi dư sức.
+let frameAcc=0,frameCount=0,pixelRatio=1,maxPixelRatio=1;
+export function adaptResolution(dt){
+ frameAcc+=dt;frameCount++;
+ if(frameAcc<1.2)return;
+ const avg=frameAcc/frameCount;frameAcc=frameCount=0;
+ let next=pixelRatio;
+ if(avg>1/38)next=Math.max(.6,pixelRatio-.15);
+ else if(avg<1/56)next=Math.min(maxPixelRatio,pixelRatio+.1);
+ if(Math.abs(next-pixelRatio)<.01)return;
+ pixelRatio=next;renderer.setPixelRatio(pixelRatio);renderer.setSize(innerWidth,innerHeight);
+}
+
 export function buildScene(){
 scene=new THREE.Scene();
 scene.background=new THREE.Color('#d2dfd7');
 renderer=new THREE.WebGLRenderer({antialias:true,logarithmicDepthBuffer:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+maxPixelRatio=pixelRatio=Math.min(devicePixelRatio,1.5);
+renderer.setPixelRatio(pixelRatio);
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
