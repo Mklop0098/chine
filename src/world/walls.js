@@ -11,6 +11,8 @@ import {buildSideGates} from './sideGates.js';
 import {buildQianqingmen} from './landmarks.js';
 import {pattern} from '../core/utils.js';
 import {studDoor} from '../builders/ornaments.js';
+import {FENGXIAN_SIDE_GATE} from '../core/fengxianLayout.js';
+import {YANGXIN_EAST_GATE} from '../core/yangxinLayout.js';
 
 export function wallCap(p,top,mat=roofGold){
  const signed=p.reduce((sum,[x,z],i)=>{const [u,v]=p[(i+1)%p.length];return sum+x*v-u*z},0);
@@ -71,7 +73,7 @@ function junctionRoof(main,branch,top,side=1){
  face([bs,bn,br],true,wallRed);
 }
 
-export function buildLWall(points,{endInset=0}={}){
+export function buildLWall(points,{endInset=0,cutOpenings=false}={}){
  const top=3.1;
  // Các đường song song chung một góc vát 45 độ, cả tường và mái đều nối kín.
  function offset(distance){
@@ -103,7 +105,8 @@ export function buildLWall(points,{endInset=0}={}){
    edge[end][1]+=bodyPoints[end][1]-points[end][1];
   }
  }
- polygon([...bodyLeft,...bodyRight.reverse()],0,top,wallRed,true);
+ const body=[...bodyLeft,...bodyRight.reverse()];
+ for(const piece of cutOpenings?cutOut(body):[body])polygon(piece,0,top,wallRed,true);
  const left=offset(.82),right=offset(-.82);
  function face(vertices,material){
   const geometry=new THREE.BufferGeometry();
@@ -168,8 +171,15 @@ function buildNoticeWalls(){
 export function buildWalls(){
 buildNoticeWalls();
 // Tuyến tường đỏ dày 1,25 m, mái hai dốc chung sống nóc như tường chữ T.
-buildLWall([[-68.25,-428.65],[-68.25,-114.4]]);
-buildLWall([[70,-428.65],[70,-114.4]]);
+// Đoạn giữa dùng tường bao sáu cung dựng trong westSix.js, tránh mái chồng nhau.
+buildLWall([[-68.25,-428.65],[-68.25,-366]]);
+buildLWall([[-68.25,-214],[-68.25,YANGXIN_EAST_GATE.z-YANGXIN_EAST_GATE.width/2]]);
+buildLWall([[-68.25,YANGXIN_EAST_GATE.z+YANGXIN_EAST_GATE.width/2],[-68.25,-114.4]]);
+buildLWall([[70,-428.65],[70,-366]]);
+// Mép tây Trai Cung (-208 đến -138) do fengxian.js dựng liền góc với sân.
+// Hành lang ngang -214 đến -204 để thông, không dựng đoạn tường chắn đầu.
+buildLWall([[70,-138],[70,FENGXIAN_SIDE_GATE.z-FENGXIAN_SIDE_GATE.width/2]]);
+buildLWall([[70,FENGXIAN_SIDE_GATE.z+FENGXIAN_SIDE_GATE.width/2],[70,-114.4]]);
 // Tường bắc cùng bề dày, mái hai dốc, nối tới cổng đóng trên trục giữa.
 buildLWall([[-240.26,-428.65],[-4.86,-428.65]]);
 buildLWall([[6.64,-428.65],[230.36,-428.65]]);

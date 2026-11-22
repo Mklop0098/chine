@@ -27,10 +27,12 @@ import {exitStory,startChapter1,storyMouseBusy,storyBeat,storyMarkers,storyFloor
 import {buildUI,dialogueOpen,pauseUI,showPause,startScreen} from '../story/ui.js';
 import {suspendAudio} from '../story/audio.js';
 import {buildProfileUI,profileOpen,showProfile} from '../story/profile.js';
+import {heroMoveSpeed} from '../player/movement.js';
 
 export let tags,target,focus,ray,plane,ruler,clock,keys,angle,pitch,distance,walking,measuring,first,drag,px,pz,yaw,look,feet,eyeY,guiding,guideIndex,route,routeLength,routeLine,canvas,moveCodes;
 let flight=null;
 let heroMode=false;
+let tourMode=false;
 let paused=false;
 // Tạm dừng: đóng băng mọi cập nhật (cinematic, nhân vật, NPC, thời tiết, âm thanh) nhưng vẫn vẽ khung hình.
 export function setPaused(v){
@@ -48,12 +50,17 @@ export function guideUI(){
 }
 
 export function hint(){
+ if(walking&&heroMode&&tourMode){
+  ui('status').textContent='Tham quan tự do · WASD / mũi tên di chuyển nhanh · Chuột xoay camera · Không cần giữ Shift · P tạm dừng';
+  return;
+ }
  ui('status').textContent=walking&&heroMode?(document.pointerLockElement?'Chuột xoay camera · WASD đi · Shift chạy · E hành lễ · Q quỳ · Esc nhả chuột':'Bấm vào màn hình để khóa chuột (xoay camera theo chuột) · WASD đi · Shift chạy · E hành lễ · Q quỳ'):walking?'WASD hoặc mũi tên để đi · Kéo để nhìn quanh':measuring?'Chọn hai điểm trên mặt bằng để đo ngang.':'Kéo để di chuyển · Kéo chuột phải để xoay · Cuộn để thu phóng';
 }
 
 export function setWalk(value){
  if(value)flight=null;
- walking=value;keys.clear();if(!value){guiding=false;guideUI();heroMode=false}
+ walking=value;keys.clear();if(!value){guiding=false;guideUI();heroMode=false;tourMode=false}
+ ui('tour').setAttribute('aria-pressed',String(value&&tourMode));
  setHeroVisible(walking&&heroMode);ui('hero').setAttribute('aria-pressed',String(walking&&heroMode));
  document.body.classList.toggle('walking',value);
  ui('walk').setAttribute('aria-pressed',String(value));hint();
@@ -68,7 +75,7 @@ export function setMeasure(value){
 // nhân vật vẫn đứng nguyên tại chỗ và có nút "Quay lại nhân vật".
 let savedHero=null;
 function rememberHero(){
- if(walking&&heroMode&&!savedHero)savedHero={x:px,z:pz,feet,camYaw:hero.camYaw,camPitch:hero.camPitch,camDist:hero.camDist};
+ if(walking&&heroMode&&!savedHero)savedHero={x:px,z:pz,feet,camYaw:hero.camYaw,camPitch:hero.camPitch,camDist:hero.camDist,tourMode};
 }
 function keepHeroShown(){
  if(!savedHero)return;
@@ -80,7 +87,7 @@ export function returnToHero(){
  const s=savedHero;savedHero=null;ui('backHero').hidden=true;
  closeRoom();flight=null;setMeasure(false);routeLine.visible=false;
  px=s.x;pz=s.z;feet=s.feet;hero.camYaw=s.camYaw;hero.camPitch=s.camPitch;hero.camDist=s.camDist;hero.camCur=s.camDist;
- heroMode=true;setWalk(true);
+ heroMode=true;tourMode=!!s.tourMode;setWalk(true);
 }
 function forgetHero(){savedHero=null;ui('backHero').hidden=true}
 
@@ -178,7 +185,7 @@ function heroStep(dt){
   const dx=(-Math.sin(cy)*f+Math.cos(cy)*s)/len,dz=(-Math.cos(cy)*f-Math.sin(cy)*s)/len;
   const want=Math.atan2(dx,dz),delta=Math.atan2(Math.sin(want-hero.yaw),Math.cos(want-hero.yaw));
   hero.yaw+=delta*(1-Math.exp(-dt*11));
-  target=Math.min(running?5.2:2.1,hero.speedCap||99);
+  target=heroMoveSpeed(tourMode,running,hero.speedCap);
   const v=hero.speed*dt*Math.max(.25,Math.cos(delta));
   if(v>0&&!move(dx*v,dz*v))target=0;
  }
@@ -187,14 +194,31 @@ function heroStep(dt){
  hero.turnRate=THREE.MathUtils.lerp(hero.turnRate,Math.atan2(Math.sin(hero.yaw-prevYaw),Math.cos(hero.yaw-prevYaw))/Math.max(dt,1e-3),1-Math.exp(-dt*6));
 }
 
-export function startHero(){
+export function startHero({tour=false,position=null}={}){
  closeRoom();
  setMeasure(false);routeLine.visible=false;
+ tourMode=tour;
+ const nearby=[];
+ if(position){
+  nearby.push([position.x,position.z,position.feet||0]);
+  for(const radius of [2,4,6,8,12,16,24,32])for(let i=0;i<16;i++){
+   const a=i*Math.PI/8;nearby.push([position.x+Math.cos(a)*radius,position.z+Math.sin(a)*radius,0]);
+  }
+ }
  const near=walking&&Number.isFinite(px)?[[px,pz]]:[];
- for(const [x,z] of [...near,...HERO_SPAWNS]){const y=walkableFloor(x,z,0);if(y!==null){px=x;pz=z;feet=y;break}}
+ for(const [x,z,current=0] of [...nearby,...near,...HERO_SPAWNS]){const y=walkableFloor(x,z,current);if(y!==null){px=x;pz=z;feet=y;break}}
+ hero.speedCap=0;hero.pose=null;hero.poseW=0;hero.sit=hero.sitTarget=0;hero.lean=0;
  hero.y=feet;hero.yaw=Math.PI;hero.camYaw=0;hero.camPitch=.3;hero.speed=0;hero.bow=-1;hero.kneel=hero.kneelTarget=0;
  heroMode=true;setWalk(true);
  ui('info').textContent='Cung nữ · Tiện bào xanh lơ, khảm khiên xanh đậm viền hoa mai, giày hoa bồn để. Điều khiển góc nhìn thứ ba.';
+}
+
+export function startTour(){
+ const position=walking&&heroMode?{x:px,z:pz,feet}:savedHero?{x:savedHero.x,z:savedHero.z,feet:savedHero.feet}:{x:focus.x,z:focus.z,feet:0};
+ setPaused(false);exitStory();showProfile(false);forgetHero();
+ if(hero.rig.parent!==scene)scene.attach(hero.rig);
+ startHero({tour:true,position});
+ try{ui('settingsMenu').hidePopover()}catch{}
 }
 
 // Cầu nối cho cốt truyện: đặt người chơi, đọc vị trí, dọn các chế độ khác.
@@ -336,6 +360,7 @@ scene.add(routeLine);
 
 export function buildGame2(){
 ui('places').onchange=selectPlace;
+ui('tour').onclick=startTour;
 roomScenes.forEach((room,i)=>ui('rooms').add(new Option(room.name,String(i))));
 ui('rooms').onchange=()=>{flight=null;const value=ui('rooms').value;if(value==='')closeRoom();else showRoom(+value)};
 ui('backRoom').onclick=closeRoom;
@@ -461,11 +486,11 @@ ui('backHero').onclick=returnToHero;
 pauseUI({toggle:()=>setPaused(!paused),action:a=>{
  setPaused(false);
  if(a==='restart')startChapter1(storyApi());
- if(a==='explore'){exitStory();forgetHero();setWalk(false);view(0,481,12,229,.25,.19)}
+ if(a==='explore')startTour();
 }});
 showPause(false);
 ui('chapter1').onclick=()=>{setPaused(false);startChapter1(storyApi())};
-startScreen(()=>startChapter1(storyApi()),()=>{});
+startScreen(()=>startChapter1(storyApi()),startTour);
 window.palaceModel={unitsPerMeter:1,wall:[753,961,9.9,8.62,6.66],moatWidth:52,taiheHeight:35.05,footprints:detailedBuildings,mappedRoofParts,places:places.length,rooms:roomScenes.length,position:()=>[px,pz]};
 // Lệnh gỡ lỗi trong console: palaceModel.setWeather('snow'), palaceModel.walkTo(0,300)
 window.palaceModel.setWeather=setWeather;
@@ -475,7 +500,8 @@ window.palaceModel.vegetation=()=>({...vegetationStats,...vegStats,visibleChunks
 window.palaceModel.royalNpcCount=()=>royalNpcs.length;
 window.palaceModel.birdSpots=birdGroundSpots;
 window.palaceModel.catSpots=catSpots;
-window.palaceModel.hero=()=>({x:px,z:pz,y:feet,mode:heroMode,speed:hero.speed});
+window.palaceModel.hero=()=>({x:px,z:pz,y:feet,mode:heroMode,tourMode,speed:hero.speed});
+window.palaceModel.startTour=startTour;
 window.palaceModel.playHero=startHero;
 window.palaceModel.floorAt=(x,z,c=0)=>walkableFloor(x,z,c);
 window.palaceModel.view=view;

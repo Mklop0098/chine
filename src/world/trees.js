@@ -11,6 +11,13 @@ import {defineGroup,flushGroups,pushBeam,pushTRS} from './instancer.js';
 import {PAVILION_CENTER,PAVILION_POND,PAVILION_PONDS,EAST_PAVILION_CENTER} from './waterPavilion.js';
 import {YANGXIN_GROUNDS,YANGXIN_TREES} from './yangxin.js';
 import {CINING_GROUNDS,CINING_TREES,CINING_PLATFORM,CINING_PLATFORM_HEIGHT} from './cining.js';
+import {FOUR_COURT_CENTERS} from '../core/fourCourtsLayout.js';
+import {SHOUKANG_GROUNDS,SHOUKANG_TREES} from './shoukang.js';
+import {GARDEN_EAST_GROUNDS,GARDEN_EAST_TREES} from './ciningGarden.js';
+import {WEST_SIX_GROUNDS,WEST_SIX_TREES} from '../core/westSixLayout.js';
+import {WEST_REAR_GROUNDS,WEST_REAR_TREES} from '../core/westSixRearLayout.js';
+import {EAST_SIX_GROUNDS,EAST_SIX_TREES} from '../core/eastSixLayout.js';
+import {FENGXIAN_GROUNDS,FENGXIAN_TREES,TRAI_GROUNDS} from '../core/fengxianLayout.js';
 
 export let trunkGeos,treeCrownGeo,treeCrownAlt,clumpGeos,gardenRockGeo,foliageColors,leafKinds,leafMats,clumps,blossomChance,occupied,treePositions,heightAtHill;
 
@@ -280,7 +287,7 @@ defineGroup('flowerClump',{levels:lv(crownLods[2],[35,140]),material:leafMat,cel
 defineGroup('trunk',{levels:[{geo:trunkGeos[0],max:150},{geo:trunkGeos[1],max:Infinity}],material:oldBark,cell:150});
 clumps=new Map();
 blossomChance=0;
-occupied=[...data.buildings.map(r=>r[0]),...Object.values(data.sites).map(r=>r[1]),...data.walls,...PAVILION_PONDS,YANGXIN_GROUNDS,CINING_GROUNDS].map(p=>({p,b:bounds(p)}));
+occupied=[...data.buildings.map(r=>r[0]),...Object.values(data.sites).map(r=>r[1]),...data.walls,...PAVILION_PONDS,YANGXIN_GROUNDS,CINING_GROUNDS,SHOUKANG_GROUNDS,GARDEN_EAST_GROUNDS,WEST_SIX_GROUNDS,WEST_REAR_GROUNDS,EAST_SIX_GROUNDS,FENGXIAN_GROUNDS,TRAI_GROUNDS].map(p=>({p,b:bounds(p)}));
 treePositions=[];
 for(const [x,z] of data.mappedTrees){
  if(lineDistance(x,z,data.route)<2.1||inBuilding(x,z))continue;
@@ -341,6 +348,43 @@ isolated(3818526,()=>{
  }
 });
 // Chuyển cụm cây ở hồ nhỏ cũ vào khoảng trống giữa hai nhà phía bắc.
+isolated(23112026,()=>{
+ for(const center of FOUR_COURT_CENTERS)for(const side of [-1,1]){
+  const x=center+side*6.5,z=-168;
+  box(x,.08,z,1.8,.16,1.8,baseStone);
+  addTree(x,z,.16,5.5,false,'broad');
+ }
+});
+isolated(23112027,()=>{
+ for(const [x,z] of SHOUKANG_TREES){
+  box(x,.08,z,1.5,.16,1.5,baseStone);
+  addTree(x,z,.16,4.8+random()*1.2,false,'broad');
+ }
+});
+isolated(23112028,()=>{
+ for(const [x,z] of GARDEN_EAST_TREES)addTree(x,z,.04,4.6+random()*1.5,false,'broad');
+});
+isolated(23112029,()=>{
+ for(const [x,z] of WEST_SIX_TREES){
+  box(x,.08,z,1.8,.16,1.8,baseStone);
+  addTree(x,z,.16,5.2,false,'broad');
+ }
+});
+isolated(23112030,()=>{
+ for(const [x,z] of WEST_REAR_TREES)addTree(x,z,.04,4.5,false,'broad');
+});
+isolated(23112031,()=>{
+ for(const [x,z] of EAST_SIX_TREES){
+  box(x,.08,z,1.8,.16,1.8,baseStone);
+  addTree(x,z,.16,5.2,false,'broad');
+ }
+});
+isolated(23112032,()=>{
+ for(const [x,z] of FENGXIAN_TREES){
+  box(x,.08,z,1.7,.16,1.7,baseStone);
+  addTree(x,z,.16,5.5,false,'broad');
+ }
+});
 isolated(20112026,()=>{
  for(const [x,z] of CINING_TREES){
   const y=pointInPolygon(x,z,CINING_PLATFORM)?CINING_PLATFORM_HEIGHT:0;

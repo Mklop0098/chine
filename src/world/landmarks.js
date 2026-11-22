@@ -12,13 +12,13 @@ import {buildInnerTerrace,INNER_HALLS,INNER_TERRACE_HEIGHT} from './innerTerrace
 
 export let named,landmarkRoofs,roofLabels,places;
 
-export function buildQianqingmen(x,z,w,d,y,top,{singleDoor=false,singleDoorWidth=.27,sign='乾清門',columnBays=singleDoor?3:5,stairRails=true,openCenter=true}={}){
+export function buildQianqingmen(x,z,w,d,y,top,{singleDoor=false,singleDoorWidth=.27,sign='乾清門',columnBays=singleDoor?3:5,stairRails=true,openCenter=true,doubleRoof=false}={}){
  const platformW=w+2,platformD=d+2;
  if(y>0)box(x,y/2,z,platformW,y,platformD,stone,true);
  box(x,y-.055,z,platformW,.11,platformD,paleCourt);
  surfaceRect(x,z,platformW,platformD,y);
- hall(x,z,w,d,y,top,{style:'hip-gable',bays:singleDoor?3:5,columnBays,open:true,ornate:true,sign});
- const height=(top-y)*.63;
+ hall(x,z,w,d,y,top,{style:'hip-gable',double:doubleRoof,bays:singleDoor?3:5,columnBays,open:true,ornate:true,sign});
+ const height=(top-y)*(doubleRoof?.49:.63);
  const span=w*.91,bay=span/5,doorHeight=height*.76;
  const screenZ=z-d*.12,thickness=.5;
  // Mặt cửa nằm sau hàng cột hiên. Ba bộ cửa lớn xen giữa các trụ tường đỏ.

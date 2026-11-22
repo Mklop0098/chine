@@ -487,6 +487,7 @@ export function startChapter1(gameApi){
  resetProfile();
  catchS.on=false;
  setTimeout(()=>{
+  if(mode!=='loading')return;
   build();
   resetActors();
   mode='cine';bi=0;bt=0;simT=0;enterBeat(0);
@@ -506,6 +507,7 @@ export function exitStory(){
  if(mode==='idle')return;
  const b=B[bi];if(mode==='cine')b?.exit?.call(b);
  mode='idle';inputLocked=false;
+ UI.closeStoryInteractions();
  UI.cinematic(false);UI.clearSubtitle();UI.titleCard(false);UI.canvasFilter('');UI.vignette(false);UI.snow(false);UI.quest(null);UI.prompt(null);UI.fade(0,.4);
  A.heartbeat(false);A.stopTravel();A.stopMusic();A.setAmbience(0,false);
  if(selection)selection.ring.visible=selection.beam.visible=false;

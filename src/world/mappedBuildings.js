@@ -8,6 +8,10 @@ import {terraceRails} from '../builders/hall.js';
 import {buildWaterPavilion} from './waterPavilion.js';
 import {buildYangxin} from './yangxin.js';
 import {buildCining} from './cining.js';
+import {buildWestSix} from './westSix.js';
+import {buildWestSixRear} from './westSixRear.js';
+import {buildEastSix} from './eastSix.js';
+import {buildFengxian} from './fengxian.js';
 import {material,pattern,random,vec} from '../core/utils.js';
 import {data} from '../data.js';
 import {baseStone,carvedStone,doorPanels,glaze,grayTiles,paintedBeam,paleCourt,red,roofGold,stone,tileBump,tiles} from '../materials/textures.js';
@@ -486,6 +490,10 @@ for(const entry of data.buildings){
 }
  buildYangxin();
  buildCining();
+ buildWestSix();
+ buildWestSixRear();
+ buildEastSix();
+ buildFengxian();
  buildWaterPavilion(grayTile,{east:true});
  for(const [name,x,z,span] of data.districtPlaces){
  places.push({name,x,z,y:10,d:Math.max(18,span*.61),detail:true,note:'Mặt bằng đối chiếu theo bản đồ kiến trúc và OpenStreetMap. Chi tiết mặt đứng và mái thiếu tư liệu được tái dựng.'});

@@ -32,6 +32,7 @@ import {buildBirds} from './fauna/birds.js';
 import {buildCats} from './fauna/cats.js';
 import {buildSmoke} from './fx/smoke.js';
 import {buildLanterns} from './world/lanterns.js';
+import {loadYanxiStatue} from './world/guanyinStatue.js';
 
 async function start(){
  try{
@@ -61,6 +62,7 @@ async function start(){
   buildVegetation();
   buildProps();
   buildFinalize();
+  await loadYanxiStatue();
   buildGame1();
   buildRooms();
   buildGame2();

@@ -7,6 +7,7 @@ import {baseStone,gold,grayCourt,paintedBeam,roofGold,staticMeshes,wallRed} from
 import {eaveMat,soffitMat,windowMat} from '../builders/ornaments.js';
 import {buildLWall} from './walls.js';
 import {buildQianqingmen} from './landmarks.js';
+import {YANGXIN_EAST_GATE} from '../core/yangxinLayout.js';
 
 export const YANGXIN_GROUNDS=[[-147.5,-208],[-68.25,-208],[-68.25,-116],[-147.5,-116]];
 export const YANGXIN_TREES=[[-132,-170],[-125,-168],[-91,-168],[-83,-171],[-117,-154],[-110,-153],[-103,-154],[-96,-153],[-133,-196]];
@@ -164,6 +165,7 @@ export function buildYangxin(){
  buildLWall([[-147.5,-116],[-147.5,-130.2]]);
  buildLWall([[-147.5,-137.8],[-147.5,-208],[-68.25,-208]]);
  westGate(-147.5,-134,7.6);
+ westGate(YANGXIN_EAST_GATE.x,YANGXIN_EAST_GATE.z,YANGXIN_EAST_GATE.width);
  buildLWall([[-147.5,-116],[-68.25,-116]]);
  buildLWall([[-147.5,-162],[-111.5,-162]]);
  buildLWall([[-104.5,-162],[-68.25,-162]]);

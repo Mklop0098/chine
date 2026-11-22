@@ -97,7 +97,7 @@ export function buildUI(){
  el.pause=make('div','pause','',`<h2>TẠM DỪNG</h2><button data-a="resume">▶ Tiếp tục</button><button data-a="restart">Chơi lại Chương I</button><button data-a="explore">Về chế độ tham quan</button><small>Nhấn P hoặc Esc để tiếp tục</small>`);
  el.pauseBtn=document.createElement('button');el.pauseBtn.id='pauseBtn';el.pauseBtn.type='button';el.pauseBtn.setAttribute('aria-label','Tạm dừng');document.body.append(el.pauseBtn);
  el.start=make('div','start','',`<h1>HẬU CUNG CẨM LAN TRUYỆN</h1><p>Sau những bức tường son cao vời vợi…</p>
-  <button data-a="play">Chương I — Nhất mộng nhập cung</button><button data-a="explore">Tham quan Tử Cấm Thành</button>
+  <button data-a="play">Chương I — Nhất mộng nhập cung</button><button data-a="explore">Tham quan tự do · Di chuyển nhanh</button>
   <small>Cinematic khoảng 4 phút, xen kẽ những đoạn tự điều khiển nhân vật · P để tạm dừng</small>`);
 }
 
@@ -168,6 +168,10 @@ export function dialogue({who,text,choices,onChoose,onContinue}){
  addEventListener('keydown',dlgKeys,true);
 }
 export const dialogueOpen=()=>el.dlg.classList.contains('show');
+export function closeStoryInteractions(){
+ el.dlg.classList.remove('show');el.reward.classList.remove('show');
+ if(dlgKeys){removeEventListener('keydown',dlgKeys,true);dlgKeys=null;}
+}
 export function reward(html,onClose){
  el.reward.innerHTML=`<div class="card">${html}<button>Tiếp tục</button></div>`;
  el.reward.classList.add('show');

@@ -5,6 +5,10 @@ import {box} from '../builders/primitives.js';
 import {roof} from '../builders/roof.js';
 import {OPENINGS} from './openingsData.js';
 import {data} from '../data.js';
+import {inWestSix} from '../core/westSixLayout.js';
+import {inWestRear} from '../core/westSixRearLayout.js';
+import {inEastSix} from '../core/eastSixLayout.js';
+import {inFengxian,inTrai} from '../core/fengxianLayout.js';
 import {paintedBeam,red,roofGold,stone} from '../materials/textures.js';
 import {studDoor} from '../builders/ornaments.js';
 
@@ -63,7 +67,14 @@ export function gapsFor(poly){return allFrames().filter(f=>hits(f,poly)).map(f=>
 let _frames=null;
 // Lối chéo cũ tại góc tường Càn Thanh Môn đã được thay bằng tường chữ L.
 const allFrames=()=>_frames||(_frames=[...OPENINGS,...(data?.osmAdditions?.openings||[])]
+ .filter(o=>!inWestSix(o[0],o[1]))
+ .filter(o=>!inWestRear(o[0],o[1]))
+ .filter(o=>!inEastSix(o[0],o[1]))
+ .filter(o=>!inFengxian(o[0],o[1]))
+ .filter(o=>!inTrai(o[0],o[1]))
  .filter(o=>!(Math.abs(o[0]+158.22)<.01&&Math.abs(o[1]+60.45)<.01))
+ // Bỏ cổng nhỏ gạch X giữa tường ngoài sân phụ Từ Ninh; xây liền tường.
+ .filter(o=>!(Math.abs(o[0]+157.99)<.01&&Math.abs(o[1]+113.71)<.01))
  .filter(o=>!(o[0]>-262&&o[0]<-175&&o[1]>-164&&o[1]<-60))
  .filter(o=>!(o[0]>-149&&o[0]<-68&&o[1]>-209&&o[1]<-115))
  .filter(o=>!(o[0]===-24&&o[1]===-121.5)&&!(o[0]===-45&&o[1]===-297))
